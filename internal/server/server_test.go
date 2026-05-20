@@ -185,3 +185,26 @@ func TestKeywordAddAndDuplicate(t *testing.T) {
 		t.Fatalf("duplicate must not add a second keyword, got %d", len(kws))
 	}
 }
+
+func TestSettingsMasksSecrets(t *testing.T) {
+	secret := "supersecretkey9999"
+	srv, _ := newTestServerWith(t, &config.Config{
+		OTXAPIKey:          secret,
+		ListenAddr:         ":8080",
+		DatabasePath:       "x.db",
+		LogLevel:           "info",
+		WebhookMinSeverity: "warn",
+		EmailMinSeverity:   "critical",
+	})
+	rec := do(srv, http.MethodGet, "/settings")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /settings = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, secret) {
+		t.Fatal("raw secret leaked into the settings page")
+	}
+	if !strings.Contains(body, config.Mask(secret)) {
+		t.Fatalf("masked secret %q missing from settings page", config.Mask(secret))
+	}
+}

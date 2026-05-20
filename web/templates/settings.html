@@ -1,1 +1,20 @@
-{{define "content"}}{{end}}
+{{define "content"}}
+{{with .Data}}
+<h2>Core</h2>
+{{template "settings_table" .Core}}
+<h2>Notifiers</h2>
+{{template "settings_table" .Notifiers}}
+<div class="form-row">
+<button class="btn" type="button" hx-post="/settings/test-webhook" hx-target="#webhook-result" hx-swap="innerHTML">Send test webhook</button>
+<span id="webhook-result" class="muted"></span>
+</div>
+<div class="form-row">
+<button class="btn" type="button" hx-post="/settings/test-email" hx-target="#email-result" hx-swap="innerHTML">Send test email</button>
+<span id="email-result" class="muted"></span>
+</div>
+<h2>Collector keys</h2>
+{{template "settings_table" .Collectors}}
+<h2>Scraping, feeds and dark web</h2>
+{{template "settings_table" .Web}}
+{{end}}
+{{end}}
