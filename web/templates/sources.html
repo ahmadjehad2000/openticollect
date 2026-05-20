@@ -1,1 +1,12 @@
-{{define "content"}}{{end}}
+{{define "content"}}
+{{with .Data}}
+<table class="data-table">
+<thead><tr>
+<th>Source</th><th>Status</th><th>Last run</th><th>Next run</th><th>Last error</th><th>Enabled</th>
+</tr></thead>
+<tbody>
+{{range .Sources}}{{template "source_row" .}}{{end}}
+</tbody>
+</table>
+{{end}}
+{{end}}

@@ -19,15 +19,19 @@ type fakeNextRunner struct{}
 
 func (fakeNextRunner) NextRun(string) (time.Time, bool) { return time.Time{}, false }
 
-// newTestServer builds a Server backed by a temp-file store.
+// newTestServer builds a Server backed by a temp-file store and an empty config.
 func newTestServer(t *testing.T) (*Server, *store.Store) {
+	return newTestServerWith(t, &config.Config{})
+}
+
+// newTestServerWith builds a Server with a caller-supplied config.
+func newTestServerWith(t *testing.T, cfg *config.Config) (*Server, *store.Store) {
 	t.Helper()
 	st, err := store.Open(filepath.Join(t.TempDir(), "srv.db"))
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
 	t.Cleanup(func() { st.Close() })
-	cfg := &config.Config{}
 	srv, err := New(cfg, st, fakeNextRunner{}, collectors.All(cfg), discardLog())
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -131,5 +135,25 @@ func TestFindingStatusUpdatePersists(t *testing.T) {
 	}
 	if f.Status != "reviewed" {
 		t.Fatalf("status = %q, want reviewed", f.Status)
+	}
+}
+
+func TestSourcesToggle(t *testing.T) {
+	srv, st := newTestServerWith(t, &config.Config{RSSFeeds: []string{"https://x/feed"}})
+
+	rec := do(srv, http.MethodGet, "/sources")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "rssfeeds") {
+		t.Fatalf("GET /sources = %d, missing rssfeeds row", rec.Code)
+	}
+	rec = do(srv, http.MethodPost, "/sources/rssfeeds/toggle")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("toggle = %d, want 200", rec.Code)
+	}
+	on, err := st.SourceEnabled("rssfeeds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if on {
+		t.Fatal("rssfeeds should be disabled after toggle")
 	}
 }
