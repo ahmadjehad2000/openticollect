@@ -1,1 +1,21 @@
-{{define "finding_panel"}}{{end}}
+{{define "finding_panel"}}
+<div class="panel">
+<h3>Finding #{{.ID}}</h3>
+<dl>
+<dt>Time</dt><dd>{{fmtTime .CreatedAt}}</dd>
+<dt>Source</dt><dd>{{.Source}}</dd>
+<dt>Keyword</dt><dd class="mono">{{.MatchedKeyword}}</dd>
+<dt>Severity</dt><dd><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></dd>
+<dt>Status</dt><dd><span class="badge badge-{{.Status}}">{{.Status}}</span></dd>
+<dt>Source URL</dt><dd>{{if .SourceURL}}<a href="{{.SourceURL}}" target="_blank" rel="noreferrer noopener">{{.SourceURL}}</a>{{else}}—{{end}}</dd>
+<dt>Excerpt</dt><dd>{{.Excerpt}}</dd>
+</dl>
+{{if .Raw}}<details><summary class="muted">Raw payload</summary><pre class="raw-json">{{.Raw}}</pre></details>{{end}}
+<div class="panel-actions">
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=reviewed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">Mark reviewed</button>
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=suppressed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">Suppress</button>
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/resend" hx-target="#resend-result" hx-swap="innerHTML">Resend alert</button>
+<span id="resend-result" class="muted"></span>
+</div>
+</div>
+{{end}}

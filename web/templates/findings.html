@@ -1,1 +1,25 @@
-{{define "content"}}{{end}}
+{{define "content"}}
+{{with .Data}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+<form class="filter-bar" method="get" action="/findings">
+<input type="search" name="q" placeholder="Search keyword or excerpt" value="{{.Filter.Search}}">
+<select name="severity">
+<option value="">All severities</option>
+<option value="info"{{if eq .Filter.Severity "info"}} selected{{end}}>info</option>
+<option value="warn"{{if eq .Filter.Severity "warn"}} selected{{end}}>warn</option>
+<option value="critical"{{if eq .Filter.Severity "critical"}} selected{{end}}>critical</option>
+</select>
+{{range .Sources}}
+<label class="muted"><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
+{{end}}
+<button class="btn btn-primary" type="submit">Filter</button>
+</form>
+{{template "findings_table" .Findings}}
+<div id="finding-panel"></div>
+<div class="pagination">
+{{if .HasPrev}}<a class="btn btn-sm" href="{{.PrevURL}}">Previous</a>{{end}}
+<span class="muted">Page {{.Page}} of {{.TotalPages}} · {{.Total}} total</span>
+{{if .HasNext}}<a class="btn btn-sm" href="{{.NextURL}}">Next</a>{{end}}
+</div>
+{{end}}
+{{end}}

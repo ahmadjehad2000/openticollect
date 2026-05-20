@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -89,5 +90,46 @@ func TestDashboardShowsFindingAndKPIs(t *testing.T) {
 	}
 	if !strings.Contains(body, `<div class="kpi-value">1</div>`) {
 		t.Fatal("dashboard should show a KPI value of 1")
+	}
+}
+
+func TestFindingsSearchFilter(t *testing.T) {
+	srv, st := newTestServer(t)
+	_, err := st.InsertFindings([]models.Finding{
+		{Source: "otx", MatchedKeyword: "alpha", Severity: "warn", Excerpt: "e", Hash: "a", Status: "new"},
+		{Source: "otx", MatchedKeyword: "beta", Severity: "warn", Excerpt: "e", Hash: "b", Status: "new"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := do(srv, http.MethodGet, "/findings?q=alpha")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /findings = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, ">alpha<") || strings.Contains(body, ">beta<") {
+		t.Fatal("search filter should show only the alpha finding")
+	}
+}
+
+func TestFindingStatusUpdatePersists(t *testing.T) {
+	srv, st := newTestServer(t)
+	ins, err := st.InsertFindings([]models.Finding{
+		{Source: "otx", MatchedKeyword: "k", Severity: "warn", Excerpt: "e", Hash: "h", Status: "new"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := ins[0].ID
+	rec := do(srv, http.MethodPost, "/findings/"+strconv.FormatInt(id, 10)+"/status?status=reviewed")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST status = %d", rec.Code)
+	}
+	f, err := st.GetFinding(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Status != "reviewed" {
+		t.Fatalf("status = %q, want reviewed", f.Status)
 	}
 }
