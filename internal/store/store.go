@@ -26,7 +26,9 @@ func Open(path string) (*Store, error) {
 			return nil, fmt.Errorf("store: create data dir: %w", err)
 		}
 	}
-	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	// synchronous(NORMAL) is the SQLite-recommended setting for WAL mode: commits
+	// no longer fsync (only checkpoints do), which is durable across app crashes.
+	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("store: open: %w", err)
