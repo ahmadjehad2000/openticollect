@@ -67,7 +67,18 @@ func run() error {
 	}
 	log.Info("collectors registered", "total", len(allCols), "active", len(active))
 
-	sched := scheduler.New(cfg, st, n, active, collectors.DefaultHTTPClient(), nil, log)
+	var torClient *http.Client
+	if cfg.TorProxy != "" {
+		tc, err := collectors.TorClient(cfg.TorProxy)
+		if err != nil {
+			log.Warn("tor client unavailable; onion watchlist disabled", "err", err)
+		} else {
+			torClient = tc
+			log.Info("tor client configured", "proxy", cfg.TorProxy)
+		}
+	}
+
+	sched := scheduler.New(cfg, st, n, active, collectors.DefaultHTTPClient(), torClient, log)
 
 	srv, err := server.New(cfg, st, sched, allCols, log)
 	if err != nil {

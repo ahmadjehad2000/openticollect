@@ -53,9 +53,20 @@ func DefaultHTTPClient() *http.Client {
 	}
 }
 
-// All returns every collector, constructed against cfg. Phase 4 extends this.
+// All returns every collector, constructed against cfg.
 func All(cfg *config.Config) []Collector {
 	return []Collector{
+		NewOTX(cfg),
+		NewAbuseIPDB(cfg),
+		NewAbuseCH(cfg),
+		NewPulsedive(cfg),
+		NewIntelX(cfg),
+		NewHIBP(cfg),
+		NewNVD(cfg),
+		NewPastes(cfg),
+		NewWebscraper(cfg),
 		NewRSSFeeds(cfg),
+		NewTelegram(cfg),
+		NewDarkweb(cfg),
 	}
 }
