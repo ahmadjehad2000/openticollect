@@ -1,6 +1,9 @@
 package collectors
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"openticollect/internal/matcher"
@@ -43,5 +46,35 @@ func TestDefaultHTTPClientSetsUserAgent(t *testing.T) {
 	c := DefaultHTTPClient()
 	if c.Timeout == 0 {
 		t.Fatal("DefaultHTTPClient must set a timeout")
+	}
+}
+
+func TestFetchJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"name":"acme","n":3}`))
+	}))
+	defer srv.Close()
+
+	var out struct {
+		Name string `json:"name"`
+		N    int    `json:"n"`
+	}
+	err := fetchJSON(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, nil, &out)
+	if err != nil {
+		t.Fatalf("fetchJSON: %v", err)
+	}
+	if out.Name != "acme" || out.N != 3 {
+		t.Fatalf("decoded wrong: %#v", out)
+	}
+}
+
+func TestFetchJSONNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	var out map[string]any
+	if err := fetchJSON(context.Background(), srv.Client(), http.MethodGet, srv.URL, nil, nil, &out); err == nil {
+		t.Fatal("expected an error for a 500 response")
 	}
 }
