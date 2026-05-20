@@ -1,1 +1,10 @@
-{{define "findings_row"}}{{end}}
+{{define "findings_row"}}
+<tr id="finding-{{.ID}}" class="clickable" hx-get="/findings/{{.ID}}" hx-target="#finding-panel" hx-swap="innerHTML">
+<td class="mono">{{fmtTime .CreatedAt}}</td>
+<td>{{.Source}}</td>
+<td class="mono">{{.MatchedKeyword}}</td>
+<td>{{truncate .Excerpt 80}}</td>
+<td><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></td>
+<td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+</tr>
+{{end}}

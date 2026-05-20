@@ -1,1 +1,8 @@
-{{define "kpi"}}{{end}}
+{{define "kpi"}}
+<div class="kpi-grid">
+<div class="kpi"><div class="kpi-label">Total findings</div><div class="kpi-value">{{.TotalFindings}}</div></div>
+<div class="kpi"><div class="kpi-label">Last 24h</div><div class="kpi-value">{{.Last24h}}</div></div>
+<div class="kpi"><div class="kpi-label">Active sources</div><div class="kpi-value">{{.ActiveSources}}</div></div>
+<div class="kpi"><div class="kpi-label">Watchlist size</div><div class="kpi-value">{{.WatchlistSize}}</div></div>
+</div>
+{{end}}

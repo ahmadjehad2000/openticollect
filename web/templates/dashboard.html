@@ -1,1 +1,19 @@
-{{define "content"}}{{end}}
+{{define "content"}}
+{{with .Data}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+{{template "kpi" .KPIs}}
+<h2>Recent findings</h2>
+{{template "findings_table" .Recent}}
+<div id="finding-panel"></div>
+<h2>Source activity</h2>
+<div class="activity">
+{{range .Activity}}
+<div class="activity-item">
+<span class="badge {{if not .HasRun}}badge-new{{else if .OK}}badge-ok{{else}}badge-err{{end}}">{{if not .HasRun}}idle{{else if .OK}}ok{{else}}err{{end}}</span>
+<strong>{{.Name}}</strong>
+<span class="muted">{{fmtTimePtr .LastRun}}</span>
+</div>
+{{end}}
+</div>
+{{end}}
+{{end}}

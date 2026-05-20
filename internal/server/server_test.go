@@ -10,6 +10,7 @@ import (
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
+	"openticollect/internal/models"
 	"openticollect/internal/store"
 )
 
@@ -63,5 +64,30 @@ func TestDashboardRoot(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "openticollect") {
 		t.Fatal("dashboard body should contain the brand")
+	}
+}
+
+func TestDashboardShowsFindingAndKPIs(t *testing.T) {
+	srv, st := newTestServer(t)
+	if _, err := st.CreateKeyword("acme.com", "literal", "warn"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := st.InsertFindings([]models.Finding{{
+		Source: "rssfeeds", SourceURL: "https://x/1", MatchedKeyword: "acme.com",
+		Severity: "critical", Excerpt: "leak at acme.com", Hash: "h1", Status: "new",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := do(srv, http.MethodGet, "/")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET / = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "acme.com") {
+		t.Fatal("dashboard should show the finding keyword")
+	}
+	if !strings.Contains(body, `<div class="kpi-value">1</div>`) {
+		t.Fatal("dashboard should show a KPI value of 1")
 	}
 }
