@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -206,5 +207,39 @@ func TestSettingsMasksSecrets(t *testing.T) {
 	}
 	if !strings.Contains(body, config.Mask(secret)) {
 		t.Fatalf("masked secret %q missing from settings page", config.Mask(secret))
+	}
+}
+
+func TestHandleTestWebhook(t *testing.T) {
+	var got int32
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&got, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer hook.Close()
+
+	srv, _ := newTestServerWith(t, &config.Config{
+		WebhookURL: hook.URL, WebhookMinSeverity: "info", EmailMinSeverity: "info",
+	})
+	rec := do(srv, http.MethodPost, "/settings/test-webhook")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("test-webhook = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "delivered") {
+		t.Fatalf("expected success message, got: %s", rec.Body.String())
+	}
+	if atomic.LoadInt32(&got) != 1 {
+		t.Fatal("the webhook endpoint did not receive the test request")
+	}
+}
+
+func TestHandleTestEmailUnconfigured(t *testing.T) {
+	srv, _ := newTestServer(t)
+	rec := do(srv, http.MethodPost, "/settings/test-email")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("test-email = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "not fully configured") {
+		t.Fatalf("expected a graceful 'not configured' message, got: %s", rec.Body.String())
 	}
 }
