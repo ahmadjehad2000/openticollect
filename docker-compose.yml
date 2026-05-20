@@ -1,0 +1,20 @@
+services:
+  openticollect:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - DATABASE_PATH=/data/openticollect.db
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # Optional Tor SOCKS5 proxy for the .onion watchlist.
+  # Start with: docker compose --profile tor up
+  # Then set TOR_PROXY=socks5://tor:9050 in .env
+  tor:
+    image: dperson/torproxy
+    restart: unless-stopped
+    profiles: ["tor"]
