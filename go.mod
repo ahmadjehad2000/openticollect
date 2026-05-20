@@ -6,6 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mmcdole/gofeed v1.3.0
+	github.com/temoto/robotstxt v1.1.2
 	golang.org/x/net v0.54.0
 	modernc.org/sqlite v1.50.1
 )
