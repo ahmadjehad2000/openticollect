@@ -126,14 +126,39 @@ func (s *Server) renderPartial(w http.ResponseWriter, name string, data any) {
 	io.Copy(w, &buf)
 }
 
-// routes is replaced with the full route table in P3 Task 4.
 func (s *Server) routes() {
 	mux := http.NewServeMux()
+
 	mux.Handle("GET /static/", http.FileServerFS(web.Static))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
-	s.mux = mux
+
+	mux.HandleFunc("GET /{$}", s.handleDashboard)
+	mux.HandleFunc("GET /findings", s.handleFindings)
+	mux.HandleFunc("GET /findings/{id}", s.handleFindingDetail)
+	mux.HandleFunc("POST /findings/{id}/status", s.handleFindingStatus)
+	mux.HandleFunc("POST /findings/{id}/resend", s.handleFindingResend)
+	mux.HandleFunc("GET /sources", s.handleSources)
+	mux.HandleFunc("POST /sources/{name}/toggle", s.handleSourceToggle)
+	mux.HandleFunc("GET /keywords", s.handleKeywords)
+	mux.HandleFunc("POST /keywords", s.handleKeywordAdd)
+	mux.HandleFunc("POST /keywords/{id}/toggle", s.handleKeywordToggle)
+	mux.HandleFunc("POST /keywords/{id}/delete", s.handleKeywordDelete)
+	mux.HandleFunc("GET /settings", s.handleSettings)
+	mux.HandleFunc("POST /settings/test-webhook", s.handleTestWebhook)
+	mux.HandleFunc("POST /settings/test-email", s.handleTestEmail)
+
+	// Basic auth (when configured) guards everything except static + health.
+	authed := basicAuth(s.cfg.BasicAuthUser, s.cfg.BasicAuthPass, mux)
+	guard := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/healthz" {
+			mux.ServeHTTP(w, r)
+			return
+		}
+		authed.ServeHTTP(w, r)
+	})
+	s.mux = recoverPanic(s.log, requestLog(s.log, guard))
 }
 
 func truncate(s string, n int) string {
