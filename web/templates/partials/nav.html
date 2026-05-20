@@ -1,1 +1,14 @@
-{{define "nav"}}{{end}}
+{{define "nav"}}
+<nav class="topbar">
+<div class="container topbar-inner">
+<a class="brand" href="/">openticollect</a>
+<div class="navlinks">
+<a href="/findings"{{if eq .Nav "findings"}} class="active"{{end}}>Findings</a>
+<a href="/sources"{{if eq .Nav "sources"}} class="active"{{end}}>Sources</a>
+<a href="/keywords"{{if eq .Nav "keywords"}} class="active"{{end}}>Keywords</a>
+<a href="/settings"{{if eq .Nav "settings"}} class="active"{{end}}>Settings</a>
+<button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">{{icon "theme"}}</button>
+</div>
+</div>
+</nav>
+{{end}}

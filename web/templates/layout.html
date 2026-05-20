@@ -1,2 +1,24 @@
 <!doctype html>
-<html><body><div id="main">{{block "content" .}}{{end}}</div></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · openTIcollect</title>
+<script>(function(){try{var t=localStorage.getItem('theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main class="container">
+<header class="page-head">
+<h1>{{.Heading}}</h1>
+{{if .Description}}<p class="muted">{{.Description}}</p>{{end}}
+</header>
+<div id="main">
+{{block "content" .}}{{end}}
+</div>
+</main>
+</body>
+</html>
