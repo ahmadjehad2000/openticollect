@@ -32,7 +32,7 @@ func NewPastes(cfg *config.Config) *Pastes {
 	}
 }
 
-func (p *Pastes) Name() string                          { return "pastes" }
+func (p *Pastes) Name() string                           { return "pastes" }
 func (p *Pastes) Interval() time.Duration                { return time.Minute }
 func (p *Pastes) MissingEnv(cfg *config.Config) []string { return nil }
 func (p *Pastes) Enabled(cfg *config.Config) bool        { return true }

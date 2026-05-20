@@ -15,7 +15,7 @@ import (
 
 // Collector is one threat-intelligence source.
 type Collector interface {
-	Name() string                          // stable id, e.g. "rssfeeds"
+	Name() string                           // stable id, e.g. "rssfeeds"
 	Enabled(cfg *config.Config) bool        // true when MissingEnv is empty
 	MissingEnv(cfg *config.Config) []string // env vars needed but unset
 	Interval() time.Duration                // base interval; scheduler adds +/-10% jitter

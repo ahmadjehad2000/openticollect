@@ -22,7 +22,7 @@ func NewNVD(cfg *config.Config) *NVD {
 	return &NVD{key: cfg.NVDAPIKey, baseURL: "https://services.nvd.nist.gov"}
 }
 
-func (n *NVD) Name() string                          { return "nvd" }
+func (n *NVD) Name() string                           { return "nvd" }
 func (n *NVD) Interval() time.Duration                { return 30 * time.Minute }
 func (n *NVD) MissingEnv(cfg *config.Config) []string { return nil } // keyless; key is optional
 func (n *NVD) Enabled(cfg *config.Config) bool        { return true }

@@ -22,7 +22,7 @@ type fakeCollector struct {
 	panic    bool
 }
 
-func (f *fakeCollector) Name() string                      { return f.name }
+func (f *fakeCollector) Name() string                       { return f.name }
 func (f *fakeCollector) Enabled(*config.Config) bool        { return true }
 func (f *fakeCollector) MissingEnv(*config.Config) []string { return nil }
 func (f *fakeCollector) Interval() time.Duration            { return time.Hour }

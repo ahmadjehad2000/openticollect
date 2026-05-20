@@ -28,7 +28,7 @@ func NewHIBP(cfg *config.Config) *HIBP {
 	}
 }
 
-func (h *HIBP) Name() string                          { return "hibp" }
+func (h *HIBP) Name() string                           { return "hibp" }
 func (h *HIBP) Interval() time.Duration                { return 6 * time.Hour }
 func (h *HIBP) MissingEnv(cfg *config.Config) []string { return nil } // keyless
 func (h *HIBP) Enabled(cfg *config.Config) bool        { return true }
