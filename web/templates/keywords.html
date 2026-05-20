@@ -1,1 +1,27 @@
-{{define "content"}}{{end}}
+{{define "content"}}
+{{with .Data}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+<form class="form-row" hx-post="/keywords" hx-target="#keyword-error" hx-swap="innerHTML">
+<input type="text" name="value" placeholder="keyword or regex" required>
+<select name="kind">
+<option value="literal">literal</option>
+<option value="regex">regex</option>
+</select>
+<select name="severity">
+<option value="info">info</option>
+<option value="warn" selected>warn</option>
+<option value="critical">critical</option>
+</select>
+<button class="btn btn-primary" type="submit">Add keyword</button>
+</form>
+<div id="keyword-error"></div>
+<table class="data-table">
+<thead><tr><th>Value</th><th>Kind</th><th>Severity</th><th>Enabled</th><th></th></tr></thead>
+<tbody id="keyword-rows">
+{{if .Keywords}}{{range .Keywords}}{{template "keyword_row" .}}{{end}}{{else}}
+<tr><td colspan="5"><div class="empty">No keywords yet. Add one above to start matching.</div></td></tr>
+{{end}}
+</tbody>
+</table>
+{{end}}
+{{end}}

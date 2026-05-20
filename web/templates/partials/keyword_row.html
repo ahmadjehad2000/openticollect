@@ -1,1 +1,15 @@
-{{define "keyword_row"}}{{end}}
+{{define "keyword_row"}}
+<tr id="keyword-{{.ID}}">
+<td class="mono">{{.Value}}</td>
+<td>{{.Kind}}</td>
+<td><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></td>
+<td>
+<button class="toggle {{if .Enabled}}on{{else}}off{{end}}" type="button" aria-label="toggle"
+hx-post="/keywords/{{.ID}}/toggle" hx-target="#keyword-{{.ID}}" hx-swap="outerHTML"></button>
+</td>
+<td>
+<button class="btn btn-sm" type="button" hx-post="/keywords/{{.ID}}/delete"
+hx-target="#keyword-{{.ID}}" hx-swap="outerHTML" hx-confirm="Delete this keyword?">Delete</button>
+</td>
+</tr>
+{{end}}

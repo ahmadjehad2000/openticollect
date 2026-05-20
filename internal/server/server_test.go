@@ -45,6 +45,14 @@ func do(srv *Server, method, target string) *httptest.ResponseRecorder {
 	return rec
 }
 
+func doForm(srv *Server, method, target, body string) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	srv.ServeHTTP(rec, req)
+	return rec
+}
+
 func TestHealthz(t *testing.T) {
 	srv, _ := newTestServer(t)
 	rec := do(srv, http.MethodGet, "/healthz")
@@ -155,5 +163,25 @@ func TestSourcesToggle(t *testing.T) {
 	}
 	if on {
 		t.Fatal("rssfeeds should be disabled after toggle")
+	}
+}
+
+func TestKeywordAddAndDuplicate(t *testing.T) {
+	srv, st := newTestServer(t)
+
+	rec := doForm(srv, http.MethodPost, "/keywords", "value=acme.com&kind=literal&severity=warn")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("add keyword = %d, want 200", rec.Code)
+	}
+	if kws, _ := st.ListKeywords(); len(kws) != 1 {
+		t.Fatalf("expected 1 keyword, got %d", len(kws))
+	}
+
+	rec = doForm(srv, http.MethodPost, "/keywords", "value=acme.com&kind=literal&severity=warn")
+	if !strings.Contains(rec.Body.String(), "error-banner") {
+		t.Fatal("duplicate keyword should return an error banner")
+	}
+	if kws, _ := st.ListKeywords(); len(kws) != 1 {
+		t.Fatalf("duplicate must not add a second keyword, got %d", len(kws))
 	}
 }
