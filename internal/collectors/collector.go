@@ -55,6 +55,7 @@ func DefaultHTTPClient() *http.Client {
 
 // All returns every collector, constructed against cfg. Phase 4 extends this.
 func All(cfg *config.Config) []Collector {
-	// TODO(p2-task7): register NewRSSFeeds once the collector exists.
-	return nil
+	return []Collector{
+		NewRSSFeeds(cfg),
+	}
 }
