@@ -15,6 +15,7 @@ import (
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
+	"openticollect/internal/correlation"
 	"openticollect/internal/notifier"
 	"openticollect/internal/scheduler"
 	"openticollect/internal/server"
@@ -78,7 +79,9 @@ func run() error {
 		}
 	}
 
-	sched := scheduler.New(cfg, st, n, active, collectors.DefaultHTTPClient(), torClient, log)
+	corr := correlation.NewRunner(st)
+	sched := scheduler.New(cfg, st, n, active, corr,
+		collectors.DefaultHTTPClient(), torClient, log)
 
 	srv, err := server.New(cfg, st, sched, allCols, log)
 	if err != nil {

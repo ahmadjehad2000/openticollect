@@ -14,6 +14,7 @@ import (
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
+	"openticollect/internal/correlation"
 	"openticollect/internal/models"
 	"openticollect/internal/notifier"
 	"openticollect/internal/store"
@@ -23,6 +24,11 @@ const (
 	runTimeout   = 2 * time.Minute
 	startupDelay = 3 * time.Second
 	backoffCap   = 30 * time.Minute
+	// correlationLookback bounds how far back correlation reads findings;
+	// each engine still applies its own (shorter) window.
+	correlationLookback = 7 * 24 * time.Hour
+	// correlationInterval is how often the periodic correlation pass runs.
+	correlationInterval = 2 * time.Minute
 )
 
 type Scheduler struct {
@@ -30,6 +36,7 @@ type Scheduler struct {
 	store      *store.Store
 	notifier   *notifier.Notifier
 	collectors []collectors.Collector
+	correlator *correlation.Runner
 	http       *http.Client
 	tor        *http.Client
 	log        *slog.Logger
@@ -39,18 +46,20 @@ type Scheduler struct {
 }
 
 func New(cfg *config.Config, st *store.Store, n *notifier.Notifier,
-	cols []collectors.Collector, httpClient, tor *http.Client, log *slog.Logger) *Scheduler {
+	cols []collectors.Collector, corr *correlation.Runner,
+	httpClient, tor *http.Client, log *slog.Logger) *Scheduler {
 	if log == nil {
 		log = slog.Default()
 	}
 	return &Scheduler{
-		cfg: cfg, store: st, notifier: n, collectors: cols,
+		cfg: cfg, store: st, notifier: n, collectors: cols, correlator: corr,
 		http: httpClient, tor: tor, log: log,
 		nextRun: make(map[string]time.Time),
 	}
 }
 
-// Run starts one goroutine per collector and blocks until ctx is cancelled.
+// Run starts one goroutine per collector plus a periodic correlation loop,
+// and blocks until ctx is cancelled.
 func (s *Scheduler) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 	for _, c := range s.collectors {
@@ -60,7 +69,29 @@ func (s *Scheduler) Run(ctx context.Context) {
 			s.loop(ctx, c)
 		}(c)
 	}
+	if s.correlator != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.correlationLoop(ctx)
+		}()
+	}
 	wg.Wait()
+}
+
+// correlationLoop re-evaluates correlation on a fixed interval so that rules
+// added at runtime and time-windowed patterns are picked up even when no new
+// findings have just landed.
+func (s *Scheduler) correlationLoop(ctx context.Context) {
+	if !sleep(ctx, jitter(startupDelay)) {
+		return
+	}
+	for {
+		s.correlate(ctx)
+		if !sleep(ctx, correlationInterval) {
+			return
+		}
+	}
 }
 
 // NextRun reports the next scheduled run for a collector, for the /sources page.
@@ -147,15 +178,59 @@ func (s *Scheduler) runCollector(ctx context.Context, c collectors.Collector) er
 	}
 
 	if len(inserted) > 0 {
-		s.notifier.Dispatch(ctx, inserted)
-		now := time.Now()
-		for _, f := range inserted {
-			if err := s.store.MarkNotified(f.ID, now); err != nil {
-				s.log.Error("scheduler: mark notified failed", "finding", f.ID, "err", err)
-			}
-		}
+		s.dispatch(ctx, inserted)
+		s.correlate(ctx)
 	}
 	return runErr
+}
+
+// dispatch sends findings to the notifier and marks them notified.
+func (s *Scheduler) dispatch(ctx context.Context, findings []models.Finding) {
+	s.notifier.Dispatch(ctx, findings)
+	now := time.Now()
+	for _, f := range findings {
+		if err := s.store.MarkNotified(f.ID, now); err != nil {
+			s.log.Error("scheduler: mark notified failed", "finding", f.ID, "err", err)
+		}
+	}
+}
+
+// correlate runs the correlation engines over recent findings. Correlated
+// alerts become findings (source "correlation"), deduped and dispatched. It is
+// a no-op when no correlator is configured.
+func (s *Scheduler) correlate(ctx context.Context) {
+	if s.correlator == nil {
+		return
+	}
+	recent, err := s.store.FindingsSince(time.Now().Add(-correlationLookback))
+	if err != nil {
+		s.log.Error("scheduler: correlation load failed", "err", err)
+		return
+	}
+	now := time.Now()
+	alerts, err := s.correlator.Correlate(recent, now)
+	if err != nil {
+		s.log.Error("scheduler: correlation failed", "err", err)
+		// alerts may still hold the smart-engine output; continue.
+	}
+	s.log.Info("scheduler: correlation evaluated",
+		"recent_findings", len(recent), "alerts", len(alerts))
+	if len(alerts) == 0 {
+		return
+	}
+	cf := make([]models.Finding, 0, len(alerts))
+	for _, a := range alerts {
+		cf = append(cf, correlation.AlertToFinding(a, now))
+	}
+	inserted, err := s.store.InsertFindings(cf)
+	if err != nil {
+		s.log.Error("scheduler: correlation insert failed", "err", err)
+		return
+	}
+	if len(inserted) > 0 {
+		s.log.Info("scheduler: correlation alerts raised", "count", len(inserted))
+		s.dispatch(ctx, inserted)
+	}
 }
 
 // safeRun calls c.Run and converts a panic into an error.

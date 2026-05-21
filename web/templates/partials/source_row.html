@@ -2,12 +2,13 @@
 <tr id="source-{{.Name}}">
 <td><strong>{{.Name}}</strong></td>
 <td>
+<span class="dot {{if eq .Status "enabled"}}dot-ok{{else if eq .Status "misconfigured"}}dot-err{{else}}dot-idle{{end}}"></span>
 <span class="badge badge-{{.Status}}">{{.Status}}</span>
 {{if .MissingEnv}}<div class="muted">needs {{range .MissingEnv}}<code>{{.}}</code> {{end}}</div>{{end}}
 </td>
 <td class="mono">{{fmtTimePtr .LastRun}}</td>
 <td class="mono">{{fmtTimePtr .NextRun}}</td>
-<td>{{if .LastError}}<span class="status-err">{{truncate .LastError 60}}</span>{{else}}—{{end}}</td>
+<td>{{if .LastError}}<span class="status-err">{{truncate .LastError 60}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
 <td>
 {{if eq .Status "misconfigured"}}
 <button class="toggle off" type="button" disabled aria-label="toggle"></button>

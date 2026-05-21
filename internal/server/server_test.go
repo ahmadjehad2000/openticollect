@@ -76,8 +76,8 @@ func TestDashboardRoot(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET / = %d, want 200", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "openticollect") {
-		t.Fatal("dashboard body should contain the brand")
+	if !strings.Contains(rec.Body.String(), `class="brand"`) {
+		t.Fatal("dashboard body should contain the brand element")
 	}
 }
 
@@ -230,6 +230,37 @@ func TestHandleTestWebhook(t *testing.T) {
 	}
 	if atomic.LoadInt32(&got) != 1 {
 		t.Fatal("the webhook endpoint did not receive the test request")
+	}
+}
+
+func TestCorrelationPageAndRuleAdd(t *testing.T) {
+	srv, st := newTestServer(t)
+
+	rec := do(srv, http.MethodGet, "/correlation")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /correlation = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "Smart correlation") {
+		t.Fatal("correlation page should describe the smart engine")
+	}
+
+	rec = doForm(srv, http.MethodPost, "/correlation",
+		"name=watched+domains&keyword=acme.com&min_sources=2&min_count=3&window_minutes=120&severity=critical")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("add rule = %d, want 200", rec.Code)
+	}
+	rules, err := st.ListCorrelationRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 1 || rules[0].Name != "watched domains" || rules[0].Severity != "critical" {
+		t.Fatalf("rule not stored correctly: %#v", rules)
+	}
+
+	rec = doForm(srv, http.MethodPost, "/correlation",
+		"name=&keyword=&min_sources=2&min_count=1&window_minutes=60&severity=warn")
+	if !strings.Contains(rec.Body.String(), "error-banner") {
+		t.Fatal("a rule with no name should return an error banner")
 	}
 }
 

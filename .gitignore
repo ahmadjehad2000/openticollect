@@ -1,6 +1,9 @@
 /openticollect
+/server
 /data/
 .env
 *.db
 *.db-shm
 *.db-wal
+.playwright-mcp/
+*.png

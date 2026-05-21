@@ -42,7 +42,7 @@ func TestSmokeCollectorToStoreToWebhook(t *testing.T) {
 	}
 	fc := &fakeCollector{name: "fake", findings: []models.Finding{finding}}
 
-	s := New(&config.Config{}, st, n, []collectors.Collector{fc},
+	s := New(&config.Config{}, st, n, []collectors.Collector{fc}, nil,
 		collectors.DefaultHTTPClient(), nil, nil)
 
 	if err := s.runCollector(context.Background(), fc); err != nil {

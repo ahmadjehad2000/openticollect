@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +54,29 @@ func TestBasicAuthAcceptsCorrect(t *testing.T) {
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("correct creds: status = %d, want 200", rec.Code)
+	}
+}
+
+func TestSecurityHeadersSet(t *testing.T) {
+	h := securityHeaders(okHandler())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	want := map[string]string{
+		"X-Content-Type-Options":     "nosniff",
+		"X-Frame-Options":            "DENY",
+		"Referrer-Policy":            "no-referrer",
+		"Cross-Origin-Opener-Policy": "same-origin",
+	}
+	for k, v := range want {
+		if got := rec.Header().Get(k); got != v {
+			t.Errorf("header %s = %q, want %q", k, got, v)
+		}
+	}
+	if csp := rec.Header().Get("Content-Security-Policy"); csp == "" {
+		t.Error("Content-Security-Policy header missing")
+	} else if !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("CSP missing frame-ancestors directive: %q", csp)
 	}
 }
 

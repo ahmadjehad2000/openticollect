@@ -41,6 +41,19 @@ type Run struct {
 	Error           string
 }
 
+// CorrelationRule is a user-defined correlation rule for the custom engine.
+type CorrelationRule struct {
+	ID            int64
+	Name          string
+	Keyword       string // empty = evaluate every keyword independently
+	MinSources    int    // distinct collector sources required
+	MinCount      int    // total findings required
+	WindowMinutes int    // look-back window
+	Severity      string // severity assigned to a correlated alert
+	Enabled       bool
+	CreatedAt     time.Time
+}
+
 // SourceStatus is a view model assembled by the server from scheduler + store data.
 type SourceStatus struct {
 	Name       string

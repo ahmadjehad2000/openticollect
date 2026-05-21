@@ -9,7 +9,7 @@
 <div class="activity">
 {{range .Activity}}
 <div class="activity-item">
-<span class="badge {{if not .HasRun}}badge-new{{else if .OK}}badge-ok{{else}}badge-err{{end}}">{{if not .HasRun}}idle{{else if .OK}}ok{{else}}err{{end}}</span>
+<span class="dot {{if not .HasRun}}dot-idle{{else if .OK}}dot-ok{{else}}dot-err{{end}}"></span>
 <strong>{{.Name}}</strong>
 <span class="muted">{{fmtTimePtr .LastRun}}</span>
 </div>

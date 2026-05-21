@@ -1,0 +1,48 @@
+{{define "content"}}
+{{with .Data}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+
+<div class="found-at">
+{{icon "alert"}}
+<div>
+<div class="found-label">Smart correlation — default engine, always on</div>
+<div class="muted">
+Raises a correlated alert when a keyword is corroborated by 2 or more distinct
+sources within 24h, or when 5 or more findings for one keyword indicate an
+activity burst. Correlated alerts appear in Findings under source
+<code>correlation</code>.
+</div>
+</div>
+</div>
+
+<h2>Custom rules</h2>
+<form class="form-row" hx-post="/correlation" hx-target="#rule-error" hx-swap="innerHTML">
+<input type="text" name="name" placeholder="rule name" required>
+<input type="text" name="keyword" placeholder="keyword (blank = any)">
+<input type="number" name="min_sources" value="2" min="1" title="min distinct sources">
+<input type="number" name="min_count" value="3" min="1" title="min findings">
+<input type="number" name="window_minutes" value="1440" min="1" title="window (minutes)">
+<select name="severity">
+<option value="info">info</option>
+<option value="warn" selected>warn</option>
+<option value="critical">critical</option>
+</select>
+<button class="btn btn-primary" type="submit">Add rule</button>
+</form>
+<div id="rule-error"></div>
+
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr>
+<th>Rule</th><th>Keyword</th><th>Min sources</th><th>Min count</th>
+<th>Window</th><th>Severity</th><th>Enabled</th><th></th>
+</tr></thead>
+<tbody id="rule-rows">
+{{if .Rules}}{{range .Rules}}{{template "rule_row" .}}{{end}}{{else}}
+<tr><td colspan="8"><div class="empty">No custom rules. The smart engine still runs by default.</div></td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{end}}
