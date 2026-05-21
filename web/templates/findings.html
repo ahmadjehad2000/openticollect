@@ -9,6 +9,15 @@
 <option value="warn"{{if eq .Filter.Severity "warn"}} selected{{end}}>warn</option>
 <option value="critical"{{if eq .Filter.Severity "critical"}} selected{{end}}>critical</option>
 </select>
+<select name="sort" title="Sort order">
+<option value=""{{if ne .Filter.Sort "risk"}} selected{{end}}>Newest first</option>
+<option value="risk"{{if eq .Filter.Sort "risk"}} selected{{end}}>Highest risk first</option>
+</select>
+<select name="minrisk" title="Minimum risk score">
+<option value="0"{{if eq .Filter.MinRisk 0}} selected{{end}}>Any risk</option>
+<option value="40"{{if eq .Filter.MinRisk 40}} selected{{end}}>Risk &ge; 40</option>
+<option value="70"{{if eq .Filter.MinRisk 70}} selected{{end}}>Risk &ge; 70</option>
+</select>
 {{range .Sources}}
 <label><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
 {{end}}

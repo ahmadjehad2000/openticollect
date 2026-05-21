@@ -14,6 +14,7 @@ import (
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
 	"openticollect/internal/logbuf"
+	"openticollect/internal/risk"
 	"openticollect/internal/store"
 	"openticollect/web"
 )
@@ -98,6 +99,7 @@ func (s *Server) funcMap() template.FuncMap {
 		"fmtTimePtr":    fmtTimePtr,
 		"mask":          config.Mask,
 		"logLevelClass": logLevelClass,
+		"riskBand":      risk.Band,
 	}
 }
 

@@ -31,7 +31,10 @@ type findingsData struct {
 	Err        string
 }
 
-type filterState struct{ Search, Severity string }
+type filterState struct {
+	Search, Severity, Sort string
+	MinRisk                int
+}
 
 type sourceCheck struct {
 	Name    string
@@ -58,18 +61,21 @@ func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
 		page = p
 	}
 	selected := q["source"]
+	minRisk, _ := strconv.Atoi(q.Get("minrisk"))
 	filter := store.FindingFilter{
 		Sources:  selected,
 		Severity: q.Get("severity"),
 		Search:   strings.TrimSpace(q.Get("q")),
 		Statuses: statuses,
+		MinRisk:  minRisk,
+		Sort:     q.Get("sort"),
 		Limit:    findingsPerPage,
 		Offset:   (page - 1) * findingsPerPage,
 	}
 
 	poll := q.Get("poll") == "on"
 	d := findingsData{
-		Filter:     filterState{Search: filter.Search, Severity: filter.Severity},
+		Filter:     filterState{Search: filter.Search, Severity: filter.Severity, Sort: filter.Sort, MinRisk: minRisk},
 		BasePath:   base,
 		RefreshURL: r.URL.RequestURI(),
 		Poll:       poll,
@@ -105,6 +111,11 @@ func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
 	render()
 }
 
+type findingPanelData struct {
+	models.Finding
+	Indicators []models.Indicator
+}
+
 func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -116,7 +127,8 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "finding not found", http.StatusNotFound)
 		return
 	}
-	s.renderPartial(w, "finding_panel", f)
+	inds, _ := s.store.IndicatorsForFinding(id)
+	s.renderPartial(w, "finding_panel", findingPanelData{Finding: f, Indicators: inds})
 }
 
 // handleFindingStatus changes a finding's status. Because the change moves the
