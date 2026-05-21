@@ -67,6 +67,7 @@ func All(cfg *config.Config) []Collector {
 		NewCISAKEV(cfg),
 		NewPastes(cfg),
 		NewWebscraper(cfg),
+		NewSecretScanner(cfg),
 		NewRSSFeeds(cfg),
 		NewTelegram(cfg),
 		NewDarkweb(cfg),

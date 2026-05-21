@@ -36,6 +36,7 @@ type Config struct {
 	NVDAPIKey    string
 
 	WebscraperURLs   []string
+	SecretScanURLs   []string
 	RSSFeeds         []string
 	TelegramChannels []string
 
@@ -95,6 +96,7 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		NVDAPIKey:    getenv("NVD_API_KEY"),
 
 		WebscraperURLs:   splitList(getenv("WEBSCRAPER_URLS")),
+		SecretScanURLs:   splitList(getenv("SECRETSCAN_URLS")),
 		RSSFeeds:         splitList(str("RSS_FEEDS", defaultRSSFeeds)),
 		TelegramChannels: splitList(getenv("TELEGRAM_CHANNELS")),
 

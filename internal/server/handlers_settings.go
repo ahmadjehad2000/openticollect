@@ -56,6 +56,7 @@ var settingGroups = []struct {
 	{"Sources", []settingField{
 		{Env: "FETCH_WINDOW_DAYS", Label: "Fetch window — days of history to pull", Kind: "text"},
 		{Env: "WEBSCRAPER_URLS", Label: "Web scraper URLs (comma-separated)", Kind: "text"},
+		{Env: "SECRETSCAN_URLS", Label: "Secret-scan URLs (comma-separated)", Kind: "text"},
 		{Env: "RSS_FEEDS", Label: "RSS/Atom feeds (comma-separated)", Kind: "text"},
 		{Env: "TELEGRAM_CHANNELS", Label: "Telegram channels (comma-separated)", Kind: "text"},
 		{Env: "TOR_PROXY", Label: "Tor SOCKS5 proxy", Kind: "text"},
