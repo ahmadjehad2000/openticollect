@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS source_state (
   enabled INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS correlation_rules (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,

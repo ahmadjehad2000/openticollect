@@ -189,14 +189,9 @@ func TestKeywordAddAndDuplicate(t *testing.T) {
 
 func TestSettingsMasksSecrets(t *testing.T) {
 	secret := "supersecretkey9999"
-	srv, _ := newTestServerWith(t, &config.Config{
-		OTXAPIKey:          secret,
-		ListenAddr:         ":8080",
-		DatabasePath:       "x.db",
-		LogLevel:           "info",
-		WebhookMinSeverity: "warn",
-		EmailMinSeverity:   "critical",
-	})
+	t.Setenv("OTX_API_KEY", secret)
+	srv, _ := newTestServer(t)
+
 	rec := do(srv, http.MethodGet, "/settings")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /settings = %d", rec.Code)
@@ -207,6 +202,33 @@ func TestSettingsMasksSecrets(t *testing.T) {
 	}
 	if !strings.Contains(body, config.Mask(secret)) {
 		t.Fatalf("masked secret %q missing from settings page", config.Mask(secret))
+	}
+}
+
+func TestSettingsSavePersists(t *testing.T) {
+	srv, st := newTestServer(t)
+	rec := doForm(srv, http.MethodPost, "/settings",
+		"OTX_API_KEY=newkey123&WEBHOOK_MIN_SEVERITY=warn&EMAIL_MIN_SEVERITY=critical&LOG_LEVEL=info")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /settings = %d", rec.Code)
+	}
+	all, err := st.AllSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all["OTX_API_KEY"] != "newkey123" {
+		t.Fatalf("OTX_API_KEY not persisted: %#v", all)
+	}
+}
+
+func TestSettingsSaveRejectsBadSeverity(t *testing.T) {
+	srv, st := newTestServer(t)
+	rec := doForm(srv, http.MethodPost, "/settings", "WEBHOOK_MIN_SEVERITY=loud")
+	if !strings.Contains(rec.Body.String(), "error-banner") {
+		t.Fatal("invalid severity should return an error banner")
+	}
+	if all, _ := st.AllSettings(); len(all) != 0 {
+		t.Fatal("nothing should be persisted when validation fails")
 	}
 }
 

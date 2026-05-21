@@ -32,7 +32,11 @@ type Server struct {
 	pages    map[string]*template.Template
 	partials *template.Template
 	mux      http.Handler
+	restart  func() // triggers a graceful self-restart; nil disables it
 }
+
+// SetRestart installs the callback used to apply settings changes.
+func (s *Server) SetRestart(fn func()) { s.restart = fn }
 
 // pageData is the value passed to every full-page template.
 type pageData struct {
@@ -150,6 +154,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /correlation/{id}/toggle", s.handleCorrelationRuleToggle)
 	mux.HandleFunc("POST /correlation/{id}/delete", s.handleCorrelationRuleDelete)
 	mux.HandleFunc("GET /settings", s.handleSettings)
+	mux.HandleFunc("POST /settings", s.handleSettingsSave)
 	mux.HandleFunc("POST /settings/test-webhook", s.handleTestWebhook)
 	mux.HandleFunc("POST /settings/test-email", s.handleTestEmail)
 

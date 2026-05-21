@@ -36,17 +36,33 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: logLevel(cfg.LogLevel),
-	}))
-	slog.SetDefault(log)
-	log.Info("starting openTIcollect", "version", version.Version, "addr", cfg.ListenAddr)
-
 	st, err := store.Open(cfg.DatabasePath)
 	if err != nil {
 		return fmt.Errorf("store: %w", err)
 	}
 	defer st.Close()
+
+	// Overlay settings persisted via the Settings page on top of the
+	// environment, then reload so the merged config is authoritative.
+	if overrides, err := st.AllSettings(); err == nil && len(overrides) > 0 {
+		for k, v := range overrides {
+			if k == "DATABASE_PATH" || k == "LISTEN_ADDR" {
+				continue
+			}
+			os.Setenv(k, v)
+		}
+		if reloaded, rerr := config.Load(); rerr == nil {
+			cfg = reloaded
+		} else {
+			slog.Warn("settings overrides invalid; using environment config", "err", rerr)
+		}
+	}
+
+	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel(cfg.LogLevel),
+	}))
+	slog.SetDefault(log)
+	log.Info("starting openTIcollect", "version", version.Version, "addr", cfg.ListenAddr)
 
 	var sinks []notifier.Sink
 	if wh := notifier.NewWebhookSink(cfg.WebhookURL, cfg.WebhookSecret,
@@ -94,6 +110,26 @@ func run() error {
 	go sched.Run(ctx)
 
 	httpSrv := &http.Server{Addr: cfg.ListenAddr, Handler: srv}
+
+	// A settings save persists overrides to the DB then calls this to
+	// re-exec the binary so the new configuration is applied cleanly.
+	srv.SetRestart(func() {
+		time.Sleep(700 * time.Millisecond) // let the HTTP response flush
+		log.Info("restarting to apply settings")
+		shutCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		_ = httpSrv.Shutdown(shutCtx)
+		cancel()
+		_ = st.Close()
+		exe, err := os.Executable()
+		if err != nil {
+			log.Error("restart: cannot resolve executable", "err", err)
+			os.Exit(1)
+		}
+		if err := syscall.Exec(exe, os.Args, os.Environ()); err != nil {
+			log.Error("restart: exec failed", "err", err)
+			os.Exit(1)
+		}
+	})
 	go func() {
 		log.Info("http server listening", "addr", cfg.ListenAddr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

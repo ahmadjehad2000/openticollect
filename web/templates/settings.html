@@ -1,9 +1,34 @@
 {{define "content"}}
 {{with .Data}}
-<h2>Core</h2>
-{{template "settings_table" .Core}}
-<h2>Notifiers</h2>
-{{template "settings_table" .Notifiers}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+<form method="post" action="/settings" class="settings-form">
+{{range .Groups}}
+<h2>{{.Name}}</h2>
+<div class="settings-grid">
+{{range .Fields}}
+<label class="setting-row">
+<span class="setting-label">{{.Label}}</span>
+{{if eq .Kind "select"}}
+{{$cur := .Value}}
+<select name="{{.Env}}">{{range .Options}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}</select>
+{{else if eq .Kind "bool"}}
+<span class="setting-bool"><input type="checkbox" name="{{.Env}}" value="true"{{if .On}} checked{{end}}> enabled</span>
+{{else if .Secret}}
+<input type="password" name="{{.Env}}" placeholder="{{.Masked}} · blank keeps current" autocomplete="off">
+{{else}}
+<input type="text" name="{{.Env}}" value="{{.Value}}" autocomplete="off" spellcheck="false">
+{{end}}
+</label>
+{{end}}
+</div>
+{{end}}
+<div class="form-row">
+<button class="btn btn-primary" type="submit">Save &amp; restart</button>
+<span class="muted">Saving applies the configuration and restarts the service.</span>
+</div>
+</form>
+
+<h2>Notifier tests</h2>
 <div class="form-row">
 <button class="btn" type="button" hx-post="/settings/test-webhook" hx-target="#webhook-result" hx-swap="innerHTML">Send test webhook</button>
 <span id="webhook-result" class="muted"></span>
@@ -12,9 +37,5 @@
 <button class="btn" type="button" hx-post="/settings/test-email" hx-target="#email-result" hx-swap="innerHTML">Send test email</button>
 <span id="email-result" class="muted"></span>
 </div>
-<h2>Collector keys</h2>
-{{template "settings_table" .Collectors}}
-<h2>Scraping, feeds and dark web</h2>
-{{template "settings_table" .Web}}
 {{end}}
 {{end}}
