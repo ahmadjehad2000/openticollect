@@ -457,3 +457,10 @@ details summary { cursor: pointer; color: var(--ink-dim); font-size: 11px; }
   .panel dl { grid-template-columns: 1fr; gap: 2px 0; }
   .panel dt { margin-top: 9px; }
 }
+
+/* Analytics page — server-rendered SVG bar charts */
+.chart-card { border: 1px solid var(--line); padding: 16px 20px; margin-bottom: 18px; }
+.chart-card h2 { margin: 0 0 12px; font-size: 14px; }
+.bar-chart .bar-label { fill: var(--ink-dim); font-size: 12px; font-family: var(--mono); }
+.bar-chart .bar-value { fill: var(--ink); font-size: 12px; font-family: var(--mono); }
+.bar-chart .bar-rect  { fill: var(--accent); }

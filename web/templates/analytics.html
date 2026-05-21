@@ -1,0 +1,25 @@
+{{define "content"}}
+{{with .Data}}
+{{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
+{{template "analytics_chart" .Daily}}
+{{template "analytics_chart" .BySource}}
+{{template "analytics_chart" .ByKind}}
+{{end}}
+{{end}}
+
+{{define "analytics_chart"}}
+<section class="chart-card">
+<h2>{{.Title}}</h2>
+{{if .Bars}}
+<svg class="bar-chart" width="640" height="{{.Height}}" role="img" aria-label="{{.Title}}">
+{{range .Bars}}
+<text x="0" y="{{.TextY}}" class="bar-label">{{.Label}}</text>
+<rect x="150" y="{{.Y}}" width="{{.W}}" height="16" rx="2" class="bar-rect"></rect>
+<text x="{{.W}}" y="{{.TextY}}" dx="156" class="bar-value">{{.Count}}</text>
+{{end}}
+</svg>
+{{else}}
+<div class="empty">{{.Empty}}</div>
+{{end}}
+</section>
+{{end}}

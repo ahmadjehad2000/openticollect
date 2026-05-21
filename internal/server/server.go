@@ -72,7 +72,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) parseTemplates() error {
 	funcs := s.funcMap()
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings", "logs"} {
+	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings", "logs", "analytics"} {
 		t, err := template.New("layout.html").Funcs(funcs).ParseFS(web.Templates,
 			"templates/layout.html", "templates/partials/*.html", "templates/"+name+".html")
 		if err != nil {
@@ -157,6 +157,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /keywords", s.handleKeywordAdd)
 	mux.HandleFunc("POST /keywords/{id}/toggle", s.handleKeywordToggle)
 	mux.HandleFunc("POST /keywords/{id}/delete", s.handleKeywordDelete)
+	mux.HandleFunc("GET /analytics", s.handleAnalytics)
 	mux.HandleFunc("GET /correlation", s.handleCorrelation)
 	mux.HandleFunc("POST /correlation", s.handleCorrelationRuleAdd)
 	mux.HandleFunc("POST /correlation/{id}/toggle", s.handleCorrelationRuleToggle)
