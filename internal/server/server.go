@@ -172,6 +172,7 @@ func (s *Server) routes() {
 	apiMux.HandleFunc("GET /api/findings", s.handleAPIFindings)
 	apiMux.HandleFunc("GET /api/findings/{id}", s.handleAPIFindingDetail)
 	apiMux.HandleFunc("GET /api/indicators", s.handleAPIIndicators)
+	apiMux.HandleFunc("GET /api/stix", s.handleAPISTIX)
 	mux.Handle("/api/", s.apiGuard(apiMux))
 
 	// Basic auth (when configured) guards everything except static, health, and API.
