@@ -1,9 +1,14 @@
 // Package correlation turns a window of raw findings into higher-confidence
 // correlated alerts. Two engines run together: a built-in smart engine (default,
 // no configuration) and a custom engine driven by user-defined rules.
+//
+// Every alert is evidence-backed: it names the contributing collector sources
+// and carries a representative source URL, so a correlated finding always
+// points at the raw findings that produced it.
 package correlation
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -20,13 +25,21 @@ const (
 	burstThreshold = 5
 )
 
+// EvidenceItem ties a correlated alert back to one contributing collector.
+type EvidenceItem struct {
+	Source string `json:"source"`
+	URL    string `json:"url"`
+}
+
 // Alert is a correlated signal ready to be turned into a finding.
 type Alert struct {
-	Engine   string // "smart" | "custom"
-	Rule     string // heuristic name or custom rule name
-	Keyword  string
-	Severity string
-	Summary  string
+	Engine     string // "smart" | "custom"
+	Rule       string // heuristic name or custom rule name
+	Keyword    string
+	Severity   string
+	Summary    string
+	Evidence   []EvidenceItem
+	PrimaryURL string // representative URL of a contributing finding
 }
 
 // RuleStore supplies the enabled custom correlation rules.
@@ -59,6 +72,7 @@ func (r *Runner) Correlate(recent []models.Finding, now time.Time) ([]Alert, err
 type group struct {
 	keyword string
 	sources map[string]bool
+	urls    map[string]string // source -> first non-empty source_url seen
 	count   int
 	maxSev  int
 }
@@ -79,10 +93,13 @@ func groupByKeyword(findings []models.Finding, cutoff time.Time, keyword string)
 		}
 		g := groups[f.MatchedKeyword]
 		if g == nil {
-			g = &group{keyword: f.MatchedKeyword, sources: map[string]bool{}}
+			g = &group{keyword: f.MatchedKeyword, sources: map[string]bool{}, urls: map[string]string{}}
 			groups[f.MatchedKeyword] = g
 		}
 		g.sources[f.Source] = true
+		if f.SourceURL != "" && g.urls[f.Source] == "" {
+			g.urls[f.Source] = f.SourceURL
+		}
 		g.count++
 		if rank := models.SeverityRank(f.Severity); rank > g.maxSev {
 			g.maxSev = rank
@@ -119,6 +136,33 @@ func sortedSources(g *group) []string {
 	return out
 }
 
+// evidence builds the per-source evidence list and a representative URL.
+func evidence(g *group) ([]EvidenceItem, string) {
+	items := make([]EvidenceItem, 0, len(g.sources))
+	primary := ""
+	for _, s := range sortedSources(g) {
+		u := g.urls[s]
+		items = append(items, EvidenceItem{Source: s, URL: u})
+		if primary == "" && u != "" {
+			primary = u
+		}
+	}
+	return items, primary
+}
+
+// evidenceText renders the evidence list for an alert summary.
+func evidenceText(items []EvidenceItem) string {
+	parts := make([]string, 0, len(items))
+	for _, e := range items {
+		if e.URL != "" {
+			parts = append(parts, e.Source+": "+e.URL)
+		} else {
+			parts = append(parts, e.Source+" (no URL reported)")
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
 // smartCorrelate applies the built-in heuristics: multi-source corroboration
 // (a keyword seen across >= 2 distinct sources) and activity bursts.
 func smartCorrelate(findings []models.Finding, now time.Time) []Alert {
@@ -139,20 +183,21 @@ func smartCorrelate(findings []models.Finding, now time.Time) []Alert {
 		}
 		var reasons []string
 		if multiSource {
-			reasons = append(reasons, fmt.Sprintf("corroborated by %s (%s)",
-				plural(len(g.sources), "source"), strings.Join(sortedSources(g), ", ")))
+			reasons = append(reasons, "corroborated by "+plural(len(g.sources), "source"))
 		}
 		if burst {
-			reasons = append(reasons, fmt.Sprintf("%s indicate an activity burst",
-				plural(g.count, "finding")))
+			reasons = append(reasons, plural(g.count, "finding")+" indicate an activity burst")
 		}
+		ev, primary := evidence(g)
 		alerts = append(alerts, Alert{
 			Engine:   "smart",
 			Rule:     "smart-correlation",
 			Keyword:  g.keyword,
 			Severity: sevName(g.maxSev),
-			Summary: fmt.Sprintf("Smart correlation — %q %s within 24h.",
-				g.keyword, strings.Join(reasons, "; ")),
+			Summary: fmt.Sprintf("Smart correlation: %q %s within 24h. Evidence — %s",
+				g.keyword, strings.Join(reasons, "; "), evidenceText(ev)),
+			Evidence:   ev,
+			PrimaryURL: primary,
 		})
 	}
 	return alerts
@@ -174,15 +219,17 @@ func customCorrelate(rule models.CorrelationRule, findings []models.Finding, now
 		if len(g.sources) < rule.MinSources || g.count < rule.MinCount {
 			continue
 		}
+		ev, primary := evidence(g)
 		alerts = append(alerts, Alert{
 			Engine:   "custom",
 			Rule:     rule.Name,
 			Keyword:  g.keyword,
 			Severity: rule.Severity,
-			Summary: fmt.Sprintf("Rule %q matched — %q seen in %s across %s (%s) within %dm.",
+			Summary: fmt.Sprintf("Rule %q: %q seen in %s across %s within %dm. Evidence — %s",
 				rule.Name, g.keyword, plural(g.count, "finding"),
-				plural(len(g.sources), "source"),
-				strings.Join(sortedSources(g), ", "), rule.WindowMinutes),
+				plural(len(g.sources), "source"), rule.WindowMinutes, evidenceText(ev)),
+			Evidence:   ev,
+			PrimaryURL: primary,
 		})
 	}
 	return alerts
@@ -190,15 +237,24 @@ func customCorrelate(rule models.CorrelationRule, findings []models.Finding, now
 
 // AlertToFinding converts a correlated alert into a Finding. The dedup hash
 // includes the engine, rule, keyword and calendar day, so a given correlation
-// fires at most once per day rather than on every scheduler cycle.
+// fires at most once per day rather than on every scheduler cycle. SourceURL is
+// a representative contributing URL and Raw carries the full evidence list.
 func AlertToFinding(a Alert, now time.Time) models.Finding {
 	day := now.UTC().Format("2006-01-02")
 	dedup := strings.Join([]string{a.Engine, a.Rule, a.Keyword, day}, "|")
+	raw, _ := json.Marshal(map[string]any{
+		"engine":   a.Engine,
+		"rule":     a.Rule,
+		"keyword":  a.Keyword,
+		"evidence": a.Evidence,
+	})
 	return models.Finding{
 		Source:         Source,
+		SourceURL:      a.PrimaryURL,
 		MatchedKeyword: a.Keyword,
 		Severity:       a.Severity,
 		Excerpt:        a.Summary,
+		Raw:            string(raw),
 		Hash:           models.HashFinding(Source, dedup, a.Keyword),
 		Status:         "new",
 	}

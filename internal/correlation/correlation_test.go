@@ -17,6 +17,42 @@ func finding(source, keyword, severity string, age time.Duration) models.Finding
 	}
 }
 
+// findingU is finding with a source URL.
+func findingU(source, url, keyword, severity string, age time.Duration) models.Finding {
+	f := finding(source, keyword, severity, age)
+	f.SourceURL = url
+	return f
+}
+
+func TestAlertCarriesEvidence(t *testing.T) {
+	now := time.Now()
+	findings := []models.Finding{
+		findingU("rssfeeds", "https://news.example/1", "acme.com", "warn", time.Hour),
+		findingU("pastes", "https://paste.example/x", "acme.com", "warn", 2*time.Hour),
+	}
+	alerts := smartCorrelate(findings, now)
+	if len(alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(alerts))
+	}
+	a := alerts[0]
+	if len(a.Evidence) != 2 {
+		t.Fatalf("expected 2 evidence items, got %d", len(a.Evidence))
+	}
+	if a.PrimaryURL == "" {
+		t.Fatal("alert must carry a representative source URL")
+	}
+	if !strings.Contains(a.Summary, "https://") {
+		t.Fatalf("summary must cite evidence URLs: %q", a.Summary)
+	}
+	f := AlertToFinding(a, now)
+	if f.SourceURL == "" {
+		t.Fatal("correlation finding must have a SourceURL — not a hollow alert")
+	}
+	if !strings.Contains(f.Raw, "evidence") {
+		t.Fatal("raw payload must carry the evidence list")
+	}
+}
+
 // staticRules is a RuleStore backed by a fixed slice.
 type staticRules []models.CorrelationRule
 

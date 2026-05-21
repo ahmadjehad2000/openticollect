@@ -42,8 +42,11 @@ func (s *Store) CreateCorrelationRule(name, keyword string,
 	if !models.ValidSeverity(severity) {
 		return 0, fmt.Errorf("store: invalid severity %q", severity)
 	}
-	if minSources < 1 || minCount < 1 || windowMinutes < 1 {
-		return 0, fmt.Errorf("store: correlation rule thresholds must be >= 1")
+	if minSources < 1 || windowMinutes < 1 {
+		return 0, fmt.Errorf("store: correlation rule min_sources and window must be >= 1")
+	}
+	if minCount < 2 {
+		return 0, fmt.Errorf("store: min_count must be >= 2 (a single finding is not a correlation)")
 	}
 	res, err := s.db.Exec(
 		`INSERT INTO correlation_rules

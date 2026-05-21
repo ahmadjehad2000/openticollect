@@ -57,8 +57,11 @@ func TestCreateCorrelationRuleValidates(t *testing.T) {
 	if _, err := s.CreateCorrelationRule("r", "", 2, 1, 60, "loud"); err == nil {
 		t.Fatal("bad severity must be rejected")
 	}
-	if _, err := s.CreateCorrelationRule("r", "", 0, 1, 60, "warn"); err == nil {
+	if _, err := s.CreateCorrelationRule("r", "", 0, 2, 60, "warn"); err == nil {
 		t.Fatal("min_sources < 1 must be rejected")
+	}
+	if _, err := s.CreateCorrelationRule("r", "", 1, 1, 60, "warn"); err == nil {
+		t.Fatal("min_count < 2 must be rejected (a single finding is not a correlation)")
 	}
 }
 
