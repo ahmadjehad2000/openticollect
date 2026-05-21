@@ -12,10 +12,18 @@
 {{range .Sources}}
 <label><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
 {{end}}
+{{if .Poll}}<input type="hidden" name="poll" value="on">{{end}}
 <button class="btn btn-primary" type="submit">Filter</button>
 <button class="btn" type="button" title="Reload the current view"
 hx-get="{{.RefreshURL}}" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{{icon "refresh"}} Refresh</button>
+<button class="btn{{if .Poll}} on{{end}}" type="button"
+title="{{if .Poll}}Auto-refresh is on (every 30s){{else}}Auto-refresh every 30s{{end}}"
+hx-get="{{.PollURL}}" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{{icon "refresh"}} Auto-refresh: {{if .Poll}}on{{else}}off{{end}}</button>
 </form>
+{{if .Poll}}
+<span class="poll-tick" hx-get="{{.RefreshURL}}" hx-trigger="every 30s"
+hx-target="#main" hx-select="#main" hx-swap="outerHTML"></span>
+{{end}}
 {{template "findings_table" .Findings}}
 <div id="finding-panel"></div>
 <div class="pagination">

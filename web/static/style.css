@@ -148,6 +148,8 @@ h2 { margin: 30px 0 12px; }
 }
 .bulk-bar + .table-wrap { border-radius: 0 0 var(--r) var(--r); }
 .check-col { width: 1px; white-space: nowrap; }
+.poll-tick { display: none; }
+.btn.on { border-color: var(--accent); color: var(--accent); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .data-table th {
   text-align: left;

@@ -19,6 +19,8 @@ type findingsData struct {
 	Sources    []sourceCheck
 	BasePath   string // "/findings" or "/archive"
 	RefreshURL string // current view URL, for the refresh button
+	Poll       bool   // auto-refresh is on
+	PollURL    string // URL that flips the auto-refresh state
 	Page       int
 	TotalPages int
 	Total      int
@@ -65,10 +67,13 @@ func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
 		Offset:   (page - 1) * findingsPerPage,
 	}
 
+	poll := q.Get("poll") == "on"
 	d := findingsData{
 		Filter:     filterState{Search: filter.Search, Severity: filter.Severity},
 		BasePath:   base,
 		RefreshURL: r.URL.RequestURI(),
+		Poll:       poll,
+		PollURL:    pollURL(base, q, !poll),
 		Page:       page,
 	}
 	for _, c := range s.cols {
@@ -186,6 +191,22 @@ func pageURL(base string, q url.Values, page int) string {
 		}
 	}
 	c.Set("page", strconv.Itoa(page))
+	return base + "?" + c.Encode()
+}
+
+// pollURL rebuilds base's query with auto-refresh polling set on or off.
+func pollURL(base string, q url.Values, on bool) string {
+	c := url.Values{}
+	for k, v := range q {
+		if k != "poll" {
+			c[k] = v
+		}
+	}
+	if on {
+		c.Set("poll", "on")
+	} else {
+		c.Set("poll", "off")
+	}
 	return base + "?" + c.Encode()
 }
 
