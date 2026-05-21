@@ -112,9 +112,8 @@ func Extract(text string) []Indicator {
 	for _, a := range reBTC.FindAllString(text, -1) {
 		add(KindBTC, a)
 	}
-	// Domains last: skip any that is a substring of an extracted URL or email,
+	// Domains last: skip any that is a substring of an extracted email value,
 	// and any whose final label is a known file extension.
-	joined := strings.ToLower(text)
 	for _, d := range reDomain.FindAllString(text, -1) {
 		d = strings.ToLower(d)
 		labels := strings.Split(d, ".")
@@ -124,7 +123,6 @@ func Extract(text string) []Indicator {
 		if isInExtracted(d, out) {
 			continue
 		}
-		_ = joined
 		add(KindDomain, d)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -136,9 +134,10 @@ func Extract(text string) []Indicator {
 	return out
 }
 
-// isInExtracted reports whether domain d already appears inside an extracted
-// email value (so it is not double-counted as a bare domain). URLs are treated
-// as a distinct indicator type and do not suppress domain extraction.
+// isInExtracted reports whether domain d appears inside an already-extracted
+// email value, which would mean emitting it as a bare domain too would
+// double-count it. Domains that appear inside a URL are intentionally kept as
+// separate indicators and are not suppressed here.
 func isInExtracted(d string, out []Indicator) bool {
 	for _, in := range out {
 		if in.Kind == KindEmail {

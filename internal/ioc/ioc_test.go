@@ -19,7 +19,8 @@ func TestExtractMixed(t *testing.T) {
 	text := `Dump from 203.0.113.7 and hxxps://evil[.]example[.]com/leak
 	contact admin@acme.com hash d41d8cd98f00b204e9800998ecf8427e
 	see CVE-2024-3094 wallet bc1q9zpgru8m5v3d3w0v2v0n6q8g8m5v3d3w0v2v0`
-	got := sortedValues(Extract(text))
+	extracted := Extract(text)
+	got := sortedValues(extracted)
 	want := []string{
 		"cve:cve-2024-3094",
 		"domain:evil.example.com",
@@ -30,7 +31,7 @@ func TestExtractMixed(t *testing.T) {
 	}
 	// btc is variable-length; assert it is present separately.
 	hasBTC := false
-	for _, in := range Extract(text) {
+	for _, in := range extracted {
 		if in.Kind == KindBTC {
 			hasBTC = true
 		}
@@ -38,7 +39,7 @@ func TestExtractMixed(t *testing.T) {
 	if !hasBTC {
 		t.Errorf("expected a btc indicator")
 	}
-	gotNoBTC := got[:0]
+	var gotNoBTC []string
 	for _, v := range got {
 		if v[:3] != "btc" {
 			gotNoBTC = append(gotNoBTC, v)
