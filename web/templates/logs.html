@@ -1,0 +1,26 @@
+{{define "content"}}
+{{with .Data}}
+<div class="form-row">
+<button class="btn" type="button" title="Reload the log"
+hx-get="/logs" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{{icon "refresh"}} Refresh</button>
+<span class="muted">{{len .Entries}} recent entries</span>
+</div>
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr><th>Time</th><th>Level</th><th>Message</th><th>Detail</th></tr></thead>
+<tbody>
+{{if .Entries}}{{range .Entries}}
+<tr>
+<td class="mono">{{.When}}</td>
+<td><span class="badge {{logLevelClass .Level}}">{{.Level}}</span></td>
+<td>{{.Message}}</td>
+<td class="mono">{{.Attrs}}</td>
+</tr>
+{{end}}{{else}}
+<tr><td colspan="4"><div class="empty">No log entries captured yet.</div></td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{end}}

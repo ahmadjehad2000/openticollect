@@ -12,6 +12,7 @@ import (
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
+	"openticollect/internal/logbuf"
 	"openticollect/internal/models"
 	"openticollect/internal/store"
 )
@@ -33,7 +34,7 @@ func newTestServerWith(t *testing.T, cfg *config.Config) (*Server, *store.Store)
 		t.Fatalf("store.Open: %v", err)
 	}
 	t.Cleanup(func() { st.Close() })
-	srv, err := New(cfg, st, fakeNextRunner{}, collectors.All(cfg), discardLog())
+	srv, err := New(cfg, st, fakeNextRunner{}, collectors.All(cfg), discardLog(), logbuf.New(50))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

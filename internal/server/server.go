@@ -13,6 +13,7 @@ import (
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
+	"openticollect/internal/logbuf"
 	"openticollect/internal/store"
 	"openticollect/web"
 )
@@ -29,6 +30,7 @@ type Server struct {
 	sched    NextRunner
 	cols     []collectors.Collector
 	log      *slog.Logger
+	logs     *logbuf.Buffer
 	pages    map[string]*template.Template
 	partials *template.Template
 	mux      http.Handler
@@ -50,11 +52,11 @@ type pageData struct {
 
 // New builds a Server, parsing all templates up front.
 func New(cfg *config.Config, st *store.Store, sched NextRunner,
-	cols []collectors.Collector, log *slog.Logger) (*Server, error) {
+	cols []collectors.Collector, log *slog.Logger, logs *logbuf.Buffer) (*Server, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	s := &Server{cfg: cfg, store: st, sched: sched, cols: cols, log: log}
+	s := &Server{cfg: cfg, store: st, sched: sched, cols: cols, log: log, logs: logs}
 	if err := s.parseTemplates(); err != nil {
 		return nil, err
 	}
@@ -69,7 +71,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) parseTemplates() error {
 	funcs := s.funcMap()
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings"} {
+	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings", "logs"} {
 		t, err := template.New("layout.html").Funcs(funcs).ParseFS(web.Templates,
 			"templates/layout.html", "templates/partials/*.html", "templates/"+name+".html")
 		if err != nil {
@@ -89,12 +91,13 @@ func (s *Server) parseTemplates() error {
 
 func (s *Server) funcMap() template.FuncMap {
 	return template.FuncMap{
-		"icon":       icon,
-		"truncate":   truncate,
-		"sevClass":   sevClass,
-		"fmtTime":    fmtTime,
-		"fmtTimePtr": fmtTimePtr,
-		"mask":       config.Mask,
+		"icon":          icon,
+		"truncate":      truncate,
+		"sevClass":      sevClass,
+		"fmtTime":       fmtTime,
+		"fmtTimePtr":    fmtTimePtr,
+		"mask":          config.Mask,
+		"logLevelClass": logLevelClass,
 	}
 }
 
@@ -156,6 +159,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /correlation", s.handleCorrelationRuleAdd)
 	mux.HandleFunc("POST /correlation/{id}/toggle", s.handleCorrelationRuleToggle)
 	mux.HandleFunc("POST /correlation/{id}/delete", s.handleCorrelationRuleDelete)
+	mux.HandleFunc("GET /logs", s.handleLogs)
 	mux.HandleFunc("GET /settings", s.handleSettings)
 	mux.HandleFunc("POST /settings", s.handleSettingsSave)
 	mux.HandleFunc("POST /settings/test-webhook", s.handleTestWebhook)

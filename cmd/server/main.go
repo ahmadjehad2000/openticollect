@@ -16,6 +16,7 @@ import (
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
 	"openticollect/internal/correlation"
+	"openticollect/internal/logbuf"
 	"openticollect/internal/notifier"
 	"openticollect/internal/scheduler"
 	"openticollect/internal/server"
@@ -58,9 +59,10 @@ func run() error {
 		}
 	}
 
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	logs := logbuf.New(500)
+	log := slog.New(logs.Handler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel(cfg.LogLevel),
-	}))
+	})))
 	slog.SetDefault(log)
 	log.Info("starting openTIcollect", "version", version.Version, "addr", cfg.ListenAddr)
 
@@ -99,7 +101,7 @@ func run() error {
 	sched := scheduler.New(cfg, st, n, active, corr,
 		collectors.DefaultHTTPClient(), torClient, log)
 
-	srv, err := server.New(cfg, st, sched, allCols, log)
+	srv, err := server.New(cfg, st, sched, allCols, log, logs)
 	if err != nil {
 		return fmt.Errorf("server: %w", err)
 	}
