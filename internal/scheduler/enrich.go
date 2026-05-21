@@ -34,6 +34,11 @@ func enrichFindings(st enrichStore, findings []models.Finding) []error {
 				errs = append(errs, err)
 			}
 		}
+		// A finding enriched right after insertion has a zero CreatedAt
+		// (InsertFindings does not populate it); it was created now.
+		if f.CreatedAt.IsZero() {
+			f.CreatedAt = now
+		}
 		score := risk.Score(risk.Signals{
 			Finding: f, Indicators: inds, Credentials: len(creds), Now: now,
 		})
