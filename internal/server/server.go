@@ -141,6 +141,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("GET /{$}", s.handleDashboard)
 	mux.HandleFunc("GET /findings", s.handleFindings)
 	mux.HandleFunc("GET /archive", s.handleArchive)
+	mux.HandleFunc("POST /findings/bulk", s.handleFindingsBulk)
 	mux.HandleFunc("GET /findings/{id}", s.handleFindingDetail)
 	mux.HandleFunc("POST /findings/{id}/status", s.handleFindingStatus)
 	mux.HandleFunc("POST /findings/{id}/resend", s.handleFindingResend)

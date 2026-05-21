@@ -145,6 +145,45 @@ func TestArchiveSeparatesReviewedFindings(t *testing.T) {
 	}
 }
 
+func TestFindingsBulkAction(t *testing.T) {
+	srv, st := newTestServer(t)
+	ins, err := st.InsertFindings([]models.Finding{
+		{Source: "otx", MatchedKeyword: "a", Severity: "warn", Excerpt: "e", Hash: "b1", Status: "new"},
+		{Source: "otx", MatchedKeyword: "b", Severity: "warn", Excerpt: "e", Hash: "b2", Status: "new"},
+		{Source: "otx", MatchedKeyword: "c", Severity: "warn", Excerpt: "e", Hash: "b3", Status: "new"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := "action=reviewed&id=" + strconv.FormatInt(ins[0].ID, 10) +
+		"&id=" + strconv.FormatInt(ins[1].ID, 10)
+	rec := doForm(srv, http.MethodPost, "/findings/bulk", body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /findings/bulk = %d", rec.Code)
+	}
+	if rec.Header().Get("HX-Refresh") != "true" {
+		t.Error("bulk action should ask the client to refresh")
+	}
+	for i, want := range []string{"reviewed", "reviewed", "new"} {
+		f, err := st.GetFinding(ins[i].ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Status != want {
+			t.Errorf("finding %d status = %q, want %q", ins[i].ID, f.Status, want)
+		}
+	}
+}
+
+func TestFindingsBulkRejectsBadAction(t *testing.T) {
+	srv, _ := newTestServer(t)
+	rec := doForm(srv, http.MethodPost, "/findings/bulk", "action=delete&id=1")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad action = %d, want 400", rec.Code)
+	}
+}
+
 func TestFindingStatusUpdatePersists(t *testing.T) {
 	srv, st := newTestServer(t)
 	ins, err := st.InsertFindings([]models.Finding{

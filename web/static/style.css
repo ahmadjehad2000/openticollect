@@ -127,6 +127,18 @@ h2 { margin: 30px 0 12px; }
   font-variant-numeric: tabular-nums;
 }
 
+/* --- bulk action bar --- */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--raised);
+}
+
 /* --- tables --- */
 .table-wrap {
   border: 1px solid var(--line);
@@ -134,6 +146,8 @@ h2 { margin: 30px 0 12px; }
   background: var(--surface);
   overflow: hidden;
 }
+.bulk-bar + .table-wrap { border-radius: 0 0 var(--r) var(--r); }
+.check-col { width: 1px; white-space: nowrap; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .data-table th {
   text-align: left;

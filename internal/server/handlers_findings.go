@@ -131,6 +131,31 @@ func (s *Server) handleFindingStatus(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`<div id="finding-panel" hx-swap-oob="true"></div>`))
 }
 
+// handleFindingsBulk applies one status change to every selected finding.
+func (s *Server) handleFindingsBulk(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	action := r.FormValue("action")
+	if action != "new" && action != "reviewed" && action != "suppressed" {
+		http.Error(w, "bad action", http.StatusBadRequest)
+		return
+	}
+	for _, idStr := range r.PostForm["id"] {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			continue
+		}
+		if err := s.store.SetFindingStatus(id, action); err != nil {
+			s.log.Warn("server: bulk status update failed", "id", id, "err", err)
+		}
+	}
+	// The affected findings moved between the Findings and Archive lists;
+	// reload so the current view reflects it.
+	w.Header().Set("HX-Refresh", "true")
+}
+
 func (s *Server) handleFindingResend(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {

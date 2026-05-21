@@ -1,14 +1,23 @@
 {{define "findings_table"}}
+<form hx-post="/findings/bulk" hx-swap="none">
+<div class="bulk-bar">
+<span class="muted">With selected:</span>
+<button class="btn btn-sm" type="submit" name="action" value="reviewed">Mark reviewed</button>
+<button class="btn btn-sm" type="submit" name="action" value="suppressed">Suppress</button>
+<button class="btn btn-sm" type="submit" name="action" value="new">Restore</button>
+</div>
 <div class="table-wrap">
 <table class="data-table">
 <thead><tr>
+<th class="check-col"><input type="checkbox" id="select-all" aria-label="select all"></th>
 <th>Time</th><th>Source</th><th>Keyword</th><th>Excerpt</th><th>Severity</th><th>Status</th>
 </tr></thead>
 <tbody>
 {{if .}}{{range .}}{{template "findings_row" .}}{{end}}{{else}}
-<tr><td colspan="6"><div class="empty">No findings to show here.</div></td></tr>
+<tr><td colspan="7"><div class="empty">No findings to show here.</div></td></tr>
 {{end}}
 </tbody>
 </table>
 </div>
+</form>
 {{end}}
