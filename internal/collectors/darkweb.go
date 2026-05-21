@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,8 +14,17 @@ import (
 	"openticollect/internal/models"
 )
 
-// Darkweb searches the Ahmia clear-net index of .onion sites and, when a Tor
-// SOCKS5 proxy is configured, fetches a watchlist of .onion URLs directly.
+const (
+	// maxAhmiaResults caps the Ahmia hits processed per keyword.
+	maxAhmiaResults = 20
+	// maxOnionFetch caps how many .onion result pages are fetched via Tor per
+	// run. Kept small — Tor fetches are slow and the run has a time budget.
+	maxOnionFetch = 3
+)
+
+// Darkweb discovers dark-web content two ways: it searches the Ahmia clear-net
+// index, and — when a Tor SOCKS5 proxy is configured — fetches the actual
+// .onion result pages plus a watchlist of .onion URLs directly over Tor.
 type Darkweb struct {
 	ahmiaEnabled bool
 	ahmiaURL     string
@@ -41,22 +51,22 @@ func (d *Darkweb) MissingEnv(cfg *config.Config) []string {
 
 func (d *Darkweb) Enabled(cfg *config.Config) bool { return len(d.MissingEnv(cfg)) == 0 }
 
+type onionHit struct {
+	url   string
+	title string
+	desc  string
+}
+
 func (d *Darkweb) Run(ctx context.Context, in Input) (Result, error) {
 	m := matcher.New(in.Keywords)
 	var res Result
 
 	if d.ahmiaEnabled {
-		for _, kw := range in.Keywords {
-			if !kw.Enabled {
-				continue
-			}
-			findings, err := d.ahmiaSearch(ctx, in.HTTP, kw)
-			if err != nil {
-				in.Logger.Warn("darkweb: ahmia search failed", "term", kw.Value, "err", err)
-				continue
-			}
-			res.ItemsFetched += len(findings)
-			res.Findings = append(res.Findings, findings...)
+		token, err := d.ahmiaToken(ctx, in.HTTP)
+		if err != nil {
+			in.Logger.Warn("darkweb: ahmia unavailable", "err", err)
+		} else {
+			d.searchAhmia(ctx, in, m, token, &res)
 		}
 	}
 
@@ -68,6 +78,118 @@ func (d *Darkweb) Run(ctx context.Context, in Input) (Result, error) {
 		}
 	}
 	return res, nil
+}
+
+// searchAhmia runs an Ahmia search per keyword, records each result, and — when
+// Tor is available — fetches the actual .onion pages and scans their content.
+func (d *Darkweb) searchAhmia(ctx context.Context, in Input, m *matcher.Matcher,
+	token url.Values, res *Result) {
+	onionFetched := 0
+	for _, kw := range in.Keywords {
+		if !kw.Enabled {
+			continue
+		}
+		hits, err := d.ahmiaSearch(ctx, in.HTTP, token, kw.Value)
+		if err != nil {
+			in.Logger.Warn("darkweb: ahmia search failed", "term", kw.Value, "err", err)
+			continue
+		}
+		for _, h := range hits {
+			res.ItemsFetched++
+			res.Findings = append(res.Findings, models.Finding{
+				Source:         "darkweb",
+				SourceURL:      h.url,
+				MatchedKeyword: kw.Value,
+				Severity:       kw.Severity,
+				Excerpt:        strings.TrimSpace(h.title + " — " + h.desc),
+				Hash:           models.HashFinding("darkweb", h.url, kw.Value),
+				Status:         "new",
+			})
+		}
+		// Fetch the real .onion pages over Tor and scan their content — this
+		// goes beyond Ahmia's index to the dark-web sources themselves.
+		if in.Tor == nil {
+			continue
+		}
+		for _, h := range hits {
+			if onionFetched >= maxOnionFetch {
+				return
+			}
+			onionFetched++
+			doc, ferr := fetchDoc(ctx, in.Tor, h.url)
+			if ferr != nil {
+				in.Logger.Warn("darkweb: onion fetch failed", "url", h.url, "err", ferr)
+				continue
+			}
+			res.ItemsFetched++
+			res.Findings = append(res.Findings,
+				scanText("darkweb", h.url, extractCorpus(doc), "", m)...)
+		}
+	}
+}
+
+// ahmiaToken fetches Ahmia's home page and extracts the hidden form token that
+// its search endpoint now requires.
+func (d *Darkweb) ahmiaToken(ctx context.Context, client *http.Client) (url.Values, error) {
+	doc, err := fetchDoc(ctx, client, d.ahmiaURL+"/")
+	if err != nil {
+		return nil, fmt.Errorf("ahmia home: %w", err)
+	}
+	token := url.Values{}
+	doc.Find("#searchForm input[type=hidden]").Each(func(_ int, s *goquery.Selection) {
+		if name, ok := s.Attr("name"); ok && name != "" {
+			val, _ := s.Attr("value")
+			token.Set(name, val)
+		}
+	})
+	return token, nil
+}
+
+// ahmiaSearch queries Ahmia for a keyword and returns the onion results.
+func (d *Darkweb) ahmiaSearch(ctx context.Context, client *http.Client,
+	token url.Values, keyword string) ([]onionHit, error) {
+	q := url.Values{}
+	q.Set("q", keyword)
+	for k, vs := range token {
+		for _, v := range vs {
+			q.Add(k, v)
+		}
+	}
+	doc, err := fetchDoc(ctx, client, d.ahmiaURL+"/search/?"+q.Encode())
+	if err != nil {
+		return nil, err
+	}
+	var hits []onionHit
+	doc.Find("li.result").EachWithBreak(func(_ int, s *goquery.Selection) bool {
+		a := s.Find("h4 a").First()
+		title := strings.TrimSpace(a.Text())
+		onion := ahmiaOnionURL(a.AttrOr("href", ""))
+		if title != "" && onion != "" {
+			hits = append(hits, onionHit{
+				url:   onion,
+				title: title,
+				desc:  strings.TrimSpace(s.Find("p").First().Text()),
+			})
+		}
+		return len(hits) < maxAhmiaResults
+	})
+	return hits, nil
+}
+
+// ahmiaOnionURL extracts the real .onion URL from an Ahmia result link, which
+// is a /search/redirect?...&redirect_url=<onion> wrapper.
+func ahmiaOnionURL(href string) string {
+	u, err := url.Parse(href)
+	if err != nil {
+		return ""
+	}
+	if ru := u.Query().Get("redirect_url"); ru != "" {
+		return ru
+	}
+	if strings.Contains(href, ".onion") {
+		return href
+	}
+	return ""
 }
 
 // crawlOnions fetches each watchlisted .onion site and follows its same-host
@@ -120,31 +242,4 @@ func (d *Darkweb) crawlOnions(ctx context.Context, in Input, m *matcher.Matcher,
 			}
 		}
 	}
-}
-
-// ahmiaSearch queries Ahmia for a keyword; every returned result is a hit for it.
-func (d *Darkweb) ahmiaSearch(ctx context.Context, client *http.Client, kw models.Keyword) ([]models.Finding, error) {
-	endpoint := d.ahmiaURL + "/search/?q=" + url.QueryEscape(kw.Value)
-	doc, err := fetchDoc(ctx, client, endpoint)
-	if err != nil {
-		return nil, err
-	}
-	var findings []models.Finding
-	doc.Find("li.result").Each(func(_ int, s *goquery.Selection) {
-		title := strings.TrimSpace(s.Find("h4").Text())
-		if title == "" {
-			return
-		}
-		link, _ := s.Find("h4 a").Attr("href")
-		findings = append(findings, models.Finding{
-			Source:         "darkweb",
-			SourceURL:      link,
-			MatchedKeyword: kw.Value,
-			Severity:       kw.Severity,
-			Excerpt:        title,
-			Hash:           models.HashFinding("darkweb", link, kw.Value),
-			Status:         "new",
-		})
-	})
-	return findings, nil
 }
