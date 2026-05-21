@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"openticollect/internal/ioc"
 	"openticollect/internal/models"
 	"openticollect/internal/notifier"
 	"openticollect/internal/store"
@@ -113,7 +114,8 @@ func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
 
 type findingPanelData struct {
 	models.Finding
-	Indicators []models.Indicator
+	Indicators  []models.Indicator
+	Credentials []ioc.Credential
 }
 
 func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +130,8 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	inds, _ := s.store.IndicatorsForFinding(id)
-	s.renderPartial(w, "finding_panel", findingPanelData{Finding: f, Indicators: inds})
+	creds := ioc.ExtractCredentials(f.Excerpt + "\n" + f.Raw)
+	s.renderPartial(w, "finding_panel", findingPanelData{Finding: f, Indicators: inds, Credentials: creds})
 }
 
 // handleFindingStatus changes a finding's status. Because the change moves the

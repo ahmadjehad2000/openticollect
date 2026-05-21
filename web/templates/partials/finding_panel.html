@@ -35,6 +35,17 @@
 </div>
 {{end}}
 
+{{if .Credentials}}
+<h2>Leaked credentials <span class="badge badge-critical">{{len .Credentials}}</span></h2>
+<table class="data-table">
+<thead><tr><th>Service</th><th>Username</th><th>Password</th></tr></thead>
+<tbody>
+{{range .Credentials}}<tr><td class="mono">{{if .Service}}{{.Service}}{{else}}—{{end}}</td><td class="mono">{{.Username}}</td><td class="mono muted">{{.Masked}}</td></tr>{{end}}
+</tbody>
+</table>
+<p class="muted">Passwords are never stored — only a redacted length/shape is shown.</p>
+{{end}}
+
 {{if .Raw}}
 <h2>Raw payload</h2>
 <details><summary>Show raw JSON</summary><pre class="raw-json">{{.Raw}}</pre></details>

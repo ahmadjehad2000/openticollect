@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"strings"
 	"time"
 
 	"openticollect/internal/ioc"
@@ -13,6 +14,7 @@ import (
 type enrichStore interface {
 	InsertIndicators(findingID int64, inds []ioc.Indicator) error
 	SetFindingRisk(id int64, score int) error
+	SetFindingSeverity(id int64, severity string) error
 }
 
 // enrichFindings extracts IOCs and leaked credentials from each finding,
@@ -39,6 +41,19 @@ func enrichFindings(st enrichStore, findings []models.Finding) []error {
 		if f.CreatedAt.IsZero() {
 			f.CreatedAt = now
 		}
+		// Brand exposure: a leaked credential whose service or username names
+		// the watched keyword is the strongest possible signal — escalate to
+		// critical so it scores and alerts at the top.
+		if len(creds) > 0 && f.Severity != "critical" {
+			kw := strings.ToLower(strings.TrimSpace(f.MatchedKeyword))
+			if kw != "" && credentialNamesBrand(creds, kw) {
+				if err := st.SetFindingSeverity(f.ID, "critical"); err != nil {
+					errs = append(errs, err)
+				} else {
+					f.Severity = "critical" // reflect in the score computed below
+				}
+			}
+		}
 		score := risk.Score(risk.Signals{
 			Finding: f, Indicators: inds, Credentials: len(creds), Now: now,
 		})
@@ -47,4 +62,16 @@ func enrichFindings(st enrichStore, findings []models.Finding) []error {
 		}
 	}
 	return errs
+}
+
+// credentialNamesBrand reports whether any leaked credential's service or
+// username contains the watched keyword.
+func credentialNamesBrand(creds []ioc.Credential, keyword string) bool {
+	for _, c := range creds {
+		if strings.Contains(strings.ToLower(c.Service), keyword) ||
+			strings.Contains(strings.ToLower(c.Username), keyword) {
+			return true
+		}
+	}
+	return false
 }

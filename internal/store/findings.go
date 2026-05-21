@@ -145,6 +145,18 @@ func (s *Store) SetFindingStatus(id int64, status string) error {
 	return nil
 }
 
+// SetFindingSeverity updates a finding's severity (used by brand-exposure
+// escalation when a leaked credential names a watched asset).
+func (s *Store) SetFindingSeverity(id int64, severity string) error {
+	if !models.ValidSeverity(severity) {
+		return fmt.Errorf("store: invalid severity %q", severity)
+	}
+	if _, err := s.db.Exec(`UPDATE findings SET severity = ? WHERE id = ?`, severity, id); err != nil {
+		return fmt.Errorf("store: set finding severity: %w", err)
+	}
+	return nil
+}
+
 // SetFindingRisk stores a computed risk score for a finding.
 func (s *Store) SetFindingRisk(id int64, score int) error {
 	if _, err := s.db.Exec(`UPDATE findings SET risk_score = ? WHERE id = ?`, score, id); err != nil {
