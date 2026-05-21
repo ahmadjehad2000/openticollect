@@ -1,6 +1,20 @@
 /* openTIcollect — restrained dark console. Greys and hairlines; colour is
    reserved for severity. No glow, no gradient, no decorative accents. */
 
+/* Atkinson Hyperlegible — a warm, high-legibility face for UI text. */
+@font-face {
+  font-family: "Atkinson";
+  src: url("/static/fonts/atkinson-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson";
+  src: url("/static/fonts/atkinson-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+/* Plex Mono — kept for technical data: hashes, URLs, timestamps, code. */
 @font-face {
   font-family: "Plex Mono";
   src: url("/static/fonts/plex-mono-400.woff2") format("woff2");
@@ -33,6 +47,7 @@
   --ok: #79a07f;
 
   --r: 3px;
+  --sans: "Atkinson", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: "Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -43,10 +58,15 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--sans);
+  font-size: 13.5px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* technical data stays monospace */
+.mono, code, pre.raw-json, .brand, input, select {
+  font-family: var(--mono);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -206,7 +226,6 @@ tr.sev-info td:first-child { box-shadow: inset 2px 0 0 var(--info); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--mono);
   font-size: 12px;
   padding: 7px 13px;
   border-radius: var(--r);
