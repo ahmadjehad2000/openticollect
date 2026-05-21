@@ -13,6 +13,8 @@
 <label><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
 {{end}}
 <button class="btn btn-primary" type="submit">Filter</button>
+<button class="btn" type="button" title="Reload the current view"
+hx-get="{{.RefreshURL}}" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{{icon "refresh"}} Refresh</button>
 </form>
 {{template "findings_table" .Findings}}
 <div id="finding-panel"></div>

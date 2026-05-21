@@ -18,6 +18,7 @@ type findingsData struct {
 	Filter     filterState
 	Sources    []sourceCheck
 	BasePath   string // "/findings" or "/archive"
+	RefreshURL string // current view URL, for the refresh button
 	Page       int
 	TotalPages int
 	Total      int
@@ -65,9 +66,10 @@ func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
 	}
 
 	d := findingsData{
-		Filter:   filterState{Search: filter.Search, Severity: filter.Severity},
-		BasePath: base,
-		Page:     page,
+		Filter:     filterState{Search: filter.Search, Severity: filter.Severity},
+		BasePath:   base,
+		RefreshURL: r.URL.RequestURI(),
+		Page:       page,
 	}
 	for _, c := range s.cols {
 		d.Sources = append(d.Sources, sourceCheck{Name: c.Name(), Checked: contains(selected, c.Name())})
