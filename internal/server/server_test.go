@@ -125,6 +125,26 @@ func TestFindingsSearchFilter(t *testing.T) {
 	}
 }
 
+func TestArchiveSeparatesReviewedFindings(t *testing.T) {
+	srv, st := newTestServer(t)
+	_, err := st.InsertFindings([]models.Finding{
+		{Source: "otx", MatchedKeyword: "active-one", Severity: "warn", Excerpt: "e", Hash: "n1", Status: "new"},
+		{Source: "otx", MatchedKeyword: "archived-one", Severity: "warn", Excerpt: "e", Hash: "r1", Status: "reviewed"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	findings := do(srv, http.MethodGet, "/findings").Body.String()
+	if !strings.Contains(findings, "active-one") || strings.Contains(findings, "archived-one") {
+		t.Fatal("/findings should show only new findings")
+	}
+	archive := do(srv, http.MethodGet, "/archive").Body.String()
+	if !strings.Contains(archive, "archived-one") || strings.Contains(archive, "active-one") {
+		t.Fatal("/archive should show only reviewed/suppressed findings")
+	}
+}
+
 func TestFindingStatusUpdatePersists(t *testing.T) {
 	srv, st := newTestServer(t)
 	ins, err := st.InsertFindings([]models.Finding{

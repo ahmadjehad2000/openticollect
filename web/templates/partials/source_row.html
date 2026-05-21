@@ -17,5 +17,10 @@
 hx-post="/sources/{{.Name}}/toggle" hx-target="#source-{{.Name}}" hx-swap="outerHTML"></button>
 {{end}}
 </td>
+<td>
+<button class="btn btn-sm" type="button"
+hx-post="/sources/{{.Name}}/test" hx-target="#test-{{.Name}}" hx-swap="innerHTML">Test</button>
+<span id="test-{{.Name}}" class="muted"></span>
+</td>
 </tr>
 {{end}}

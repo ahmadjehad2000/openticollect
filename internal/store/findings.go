@@ -13,7 +13,8 @@ import (
 type FindingFilter struct {
 	Sources  []string
 	Severity string
-	Search   string // matches matched_keyword or excerpt
+	Search   string   // matches matched_keyword or excerpt
+	Statuses []string // status IN (...)
 	Limit    int
 	Offset   int
 }
@@ -66,6 +67,14 @@ func (s *Store) ListFindings(f FindingFilter) ([]models.Finding, int, error) {
 		where = append(where, "(matched_keyword LIKE ? OR excerpt LIKE ?)")
 		like := "%" + f.Search + "%"
 		args = append(args, like, like)
+	}
+	if len(f.Statuses) > 0 {
+		ph := make([]string, len(f.Statuses))
+		for i, st := range f.Statuses {
+			ph[i] = "?"
+			args = append(args, st)
+		}
+		where = append(where, "status IN ("+strings.Join(ph, ",")+")")
 	}
 	clause := ""
 	if len(where) > 0 {

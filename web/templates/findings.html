@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Data}}
 {{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
-<form class="filter-bar" method="get" action="/findings">
+<form class="filter-bar" method="get" action="{{.BasePath}}">
 <input type="search" name="q" placeholder="Search keyword or excerpt" value="{{.Filter.Search}}">
 <select name="severity">
 <option value="">All severities</option>

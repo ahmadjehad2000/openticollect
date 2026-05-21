@@ -33,8 +33,12 @@
 {{end}}
 
 <div class="panel-actions">
+{{if eq .Status "new"}}
 <button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=reviewed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "check"}} Mark reviewed</button>
 <button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=suppressed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "x"}} Suppress</button>
+{{else}}
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=new" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "refresh"}} Restore to active</button>
+{{end}}
 <button class="btn btn-sm" hx-post="/findings/{{.ID}}/resend" hx-target="#resend-result" hx-swap="innerHTML">{{icon "refresh"}} Resend alert</button>
 <span id="resend-result" class="muted"></span>
 </div>

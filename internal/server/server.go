@@ -140,11 +140,13 @@ func (s *Server) routes() {
 
 	mux.HandleFunc("GET /{$}", s.handleDashboard)
 	mux.HandleFunc("GET /findings", s.handleFindings)
+	mux.HandleFunc("GET /archive", s.handleArchive)
 	mux.HandleFunc("GET /findings/{id}", s.handleFindingDetail)
 	mux.HandleFunc("POST /findings/{id}/status", s.handleFindingStatus)
 	mux.HandleFunc("POST /findings/{id}/resend", s.handleFindingResend)
 	mux.HandleFunc("GET /sources", s.handleSources)
 	mux.HandleFunc("POST /sources/{name}/toggle", s.handleSourceToggle)
+	mux.HandleFunc("POST /sources/{name}/test", s.handleSourceTest)
 	mux.HandleFunc("GET /keywords", s.handleKeywords)
 	mux.HandleFunc("POST /keywords", s.handleKeywordAdd)
 	mux.HandleFunc("POST /keywords/{id}/toggle", s.handleKeywordToggle)
