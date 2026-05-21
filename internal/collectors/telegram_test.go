@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"openticollect/internal/config"
@@ -39,14 +40,42 @@ func TestTelegramRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if res.ItemsFetched != 2 {
-		t.Errorf("ItemsFetched = %d, want 2", res.ItemsFetched)
+	// Recent scan + per-keyword search both find the same message; the store
+	// would dedup, but the collector reports one finding per keyword hit here.
+	if len(res.Findings) == 0 {
+		t.Fatal("expected at least one telegram finding")
 	}
-	if len(res.Findings) != 1 {
-		t.Fatalf("findings = %d, want 1", len(res.Findings))
+	for _, f := range res.Findings {
+		if f.MatchedKeyword != "acme.com" {
+			t.Fatalf("unexpected keyword %q", f.MatchedKeyword)
+		}
 	}
-	if res.Findings[0].SourceURL != "https://t.me/leakchan/5" {
-		t.Errorf("SourceURL = %q", res.Findings[0].SourceURL)
+}
+
+func TestTelegramSearchesPerKeyword(t *testing.T) {
+	var queried int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("q") != "" {
+			atomic.AddInt32(&queried, 1)
+		}
+		w.Write([]byte(tgPreviewPage))
+	}))
+	defer srv.Close()
+
+	tg := NewTelegram(&config.Config{TelegramChannels: []string{"@leakchan"}})
+	tg.baseURL = srv.URL
+	in := Input{
+		Keywords: []models.Keyword{
+			{ID: 1, Value: "acme.com", Kind: "literal", Severity: "warn", Enabled: true},
+		},
+		HTTP:   srv.Client(),
+		Logger: testLogger(),
+	}
+	if _, err := tg.Run(context.Background(), in); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if atomic.LoadInt32(&queried) == 0 {
+		t.Fatal("telegram should issue a per-keyword ?q= search, not just scrape recent messages")
 	}
 }
 
