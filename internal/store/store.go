@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -41,7 +42,29 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("store: apply schema: %w", err)
 	}
+	if err := migrate(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return &Store{db: db}, nil
+}
+
+// migrate applies idempotent ALTER TABLE statements for columns added after a
+// database may already exist. SQLite has no "ADD COLUMN IF NOT EXISTS", so a
+// duplicate-column error is expected and ignored.
+func migrate(db *sql.DB) error {
+	alters := []string{
+		`ALTER TABLE findings ADD COLUMN risk_score INTEGER NOT NULL DEFAULT 0`,
+	}
+	for _, a := range alters {
+		if _, err := db.Exec(a); err != nil {
+			if strings.Contains(err.Error(), "duplicate column name") {
+				continue
+			}
+			return fmt.Errorf("store: migrate: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }

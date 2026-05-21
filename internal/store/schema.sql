@@ -59,3 +59,15 @@ CREATE TABLE IF NOT EXISTS correlation_rules (
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS indicators (
+  id INTEGER PRIMARY KEY,
+  finding_id INTEGER NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(finding_id, kind, value)
+);
+CREATE INDEX IF NOT EXISTS idx_indicators_finding ON indicators(finding_id);
+CREATE INDEX IF NOT EXISTS idx_indicators_value   ON indicators(value);
+CREATE INDEX IF NOT EXISTS idx_indicators_kind    ON indicators(kind);

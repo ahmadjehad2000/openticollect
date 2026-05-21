@@ -26,8 +26,18 @@ type Finding struct {
 	Raw            string // JSON text, may be empty
 	Hash           string
 	Status         string // "new" | "reviewed" | "suppressed"
+	RiskScore      int    // 0–100, computed by the risk package
 	NotifiedAt     *time.Time
 	CreatedAt      time.Time
+}
+
+// Indicator is a structured IOC extracted from a finding and persisted.
+type Indicator struct {
+	ID        int64
+	FindingID int64
+	Kind      string // ioc.Kind value, e.g. "ipv4", "domain", "email"
+	Value     string
+	CreatedAt time.Time
 }
 
 type Run struct {
