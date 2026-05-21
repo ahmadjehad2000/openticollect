@@ -49,13 +49,17 @@ type Config struct {
 	FetchWindowDays int
 }
 
-// defaultRSSFeeds is the out-of-the-box watchlist of security/breach feeds.
+// defaultRSSFeeds is the out-of-the-box watchlist: general security/breach
+// reporting plus dedicated ransomware/data-leak trackers. Leak trackers are
+// the highest-signal sources for the brand-protection mission.
 const defaultRSSFeeds = "https://www.databreaches.net/feed/," +
 	"https://krebsonsecurity.com/feed/," +
 	"https://www.bleepingcomputer.com/feed/," +
 	"https://feeds.feedburner.com/TheHackersNews," +
 	"https://www.darkreading.com/rss.xml," +
-	"https://therecord.media/feed/"
+	"https://therecord.media/feed/," +
+	"https://ransomware.live/rss.xml," +
+	"https://www.ransomlook.io/rss"
 
 // Load reads .env (if present) then the process environment.
 func Load() (*Config, error) {
