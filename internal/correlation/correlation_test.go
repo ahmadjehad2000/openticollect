@@ -175,7 +175,7 @@ func TestRunnerCombinesEngines(t *testing.T) {
 		Name: "domains", Keyword: "acme.com",
 		MinSources: 2, MinCount: 2, WindowMinutes: 1440, Severity: "critical",
 	}}
-	alerts, err := NewRunner(rules).Correlate(findings, now)
+	alerts, err := NewRunner(rules).Correlate(findings, nil, now)
 	if err != nil {
 		t.Fatalf("Correlate: %v", err)
 	}

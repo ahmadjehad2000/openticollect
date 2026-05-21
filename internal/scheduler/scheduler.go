@@ -222,8 +222,17 @@ func (s *Scheduler) correlate(ctx context.Context) {
 		s.log.Error("scheduler: correlation load failed", "err", err)
 		return
 	}
+	ids := make([]int64, 0, len(recent))
+	for _, f := range recent {
+		ids = append(ids, f.ID)
+	}
+	iocMap, ierr := s.store.IndicatorsByFindings(ids)
+	if ierr != nil {
+		s.log.Warn("scheduler: correlation indicator load failed", "err", ierr)
+		iocMap = nil
+	}
 	now := time.Now()
-	alerts, err := s.correlator.Correlate(recent, now)
+	alerts, err := s.correlator.Correlate(recent, iocMap, now)
 	if err != nil {
 		s.log.Error("scheduler: correlation failed", "err", err)
 		// alerts may still hold the smart-engine output; continue.
