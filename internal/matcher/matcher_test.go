@@ -64,3 +64,50 @@ func TestExcerptWindowAndCap(t *testing.T) {
 		t.Fatalf("excerpt length = %d, must be <= 2048", len(ex))
 	}
 }
+
+func TestMatchHomoglyph(t *testing.T) {
+	m := New([]models.Keyword{
+		{Value: "acme", Kind: "literal", Severity: "warn", Enabled: true},
+	})
+	// "аcme" — leading char is a Cyrillic 'а', not Latin 'a'.
+	hits := m.Match("breach at аcme corp")
+	if len(hits) != 1 {
+		t.Fatalf("homoglyph text should match the literal keyword, got %d hits", len(hits))
+	}
+}
+
+func TestMatchFullWidth(t *testing.T) {
+	m := New([]models.Keyword{
+		{Value: "acme", Kind: "literal", Severity: "warn", Enabled: true},
+	})
+	// Full-width Latin "ａｃｍｅ" (U+FF41 U+FF43 U+FF4D U+FF45).
+	if hits := m.Match("ａｃｍｅ leaked"); len(hits) != 1 {
+		t.Fatalf("full-width text should match, got %d hits", len(hits))
+	}
+}
+
+func TestMatchExcerptOffsetAfterFold(t *testing.T) {
+	m := New([]models.Keyword{
+		{Value: "acme", Kind: "literal", Severity: "warn", Enabled: true},
+	})
+	// Multi-byte runes precede the match; the reported Index must point into
+	// the ORIGINAL text so the excerpt is coherent.
+	text := "ррр acme dump" // three Cyrillic 'р' then " acme dump"
+	hits := m.Match(text)
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	got := Excerpt(text, hits[0].Index, len("acme"))
+	if !matcherContains(got, "acme dump") {
+		t.Fatalf("excerpt %q should contain the original match context", got)
+	}
+}
+
+func matcherContains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
