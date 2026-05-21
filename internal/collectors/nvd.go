@@ -14,12 +14,17 @@ import (
 // NVD collects recently modified CVEs from the NVD CVE API 2.0 and matches them
 // against the watchlist (e.g. watched product names).
 type NVD struct {
-	key     string
-	baseURL string
+	key        string
+	baseURL    string
+	windowDays int
 }
 
 func NewNVD(cfg *config.Config) *NVD {
-	return &NVD{key: cfg.NVDAPIKey, baseURL: "https://services.nvd.nist.gov"}
+	return &NVD{
+		key:        cfg.NVDAPIKey,
+		baseURL:    "https://services.nvd.nist.gov",
+		windowDays: cfg.FetchWindowDays,
+	}
 }
 
 func (n *NVD) Name() string                           { return "nvd" }
@@ -30,8 +35,13 @@ func (n *NVD) Enabled(cfg *config.Config) bool        { return true }
 func (n *NVD) Run(ctx context.Context, in Input) (Result, error) {
 	const nvdTime = "2006-01-02T15:04:05.000"
 	now := time.Now().UTC()
+	// The NVD API caps a lastModStartDate/EndDate range at 120 days.
+	window := fetchWindow(n.windowDays)
+	if maxWindow := 120 * 24 * time.Hour; window > maxWindow {
+		window = maxWindow
+	}
 	q := url.Values{}
-	q.Set("lastModStartDate", now.Add(-24*time.Hour).Format(nvdTime))
+	q.Set("lastModStartDate", now.Add(-window).Format(nvdTime))
 	q.Set("lastModEndDate", now.Format(nvdTime))
 	endpoint := n.baseURL + "/rest/json/cves/2.0?" + q.Encode()
 

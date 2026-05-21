@@ -19,6 +19,7 @@ type AbuseCH struct {
 	urlhausURL   string
 	threatfoxURL string
 	bazaarURL    string
+	windowDays   int
 }
 
 func NewAbuseCH(cfg *config.Config) *AbuseCH {
@@ -27,6 +28,7 @@ func NewAbuseCH(cfg *config.Config) *AbuseCH {
 		urlhausURL:   "https://urlhaus-api.abuse.ch/v1/urls/recent/",
 		threatfoxURL: "https://threatfox-api.abuse.ch/api/v1/",
 		bazaarURL:    "https://mb-api.abuse.ch/api/v1/",
+		windowDays:   cfg.FetchWindowDays,
 	}
 }
 
@@ -104,8 +106,17 @@ func (a *AbuseCH) threatfox(ctx context.Context, client *http.Client) ([]abusech
 			ThreatType string `json:"threat_type"`
 		} `json:"data"`
 	}
+	// ThreatFox's get_iocs caps "days" at 7.
+	days := a.windowDays
+	if days < 1 {
+		days = 30
+	}
+	if days > 7 {
+		days = 7
+	}
+	body := fmt.Sprintf(`{"query":"get_iocs","days":%d}`, days)
 	if err := fetchJSON(ctx, client, http.MethodPost, a.threatfoxURL,
-		strings.NewReader(`{"query":"get_iocs","days":1}`),
+		strings.NewReader(body),
 		map[string]string{"Auth-Key": a.key, "Content-Type": "application/json"}, &r); err != nil {
 		return nil, err
 	}

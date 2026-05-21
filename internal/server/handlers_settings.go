@@ -54,6 +54,7 @@ var settingGroups = []struct {
 		{Env: "NVD_API_KEY", Label: "NVD (optional)", Kind: "text", Secret: true},
 	}},
 	{"Sources", []settingField{
+		{Env: "FETCH_WINDOW_DAYS", Label: "Fetch window — days of history to pull", Kind: "text"},
 		{Env: "WEBSCRAPER_URLS", Label: "Web scraper URLs (comma-separated)", Kind: "text"},
 		{Env: "RSS_FEEDS", Label: "RSS/Atom feeds (comma-separated)", Kind: "text"},
 		{Env: "TELEGRAM_CHANNELS", Label: "Telegram channels (comma-separated)", Kind: "text"},
@@ -138,6 +139,12 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if port := strings.TrimSpace(r.FormValue("SMTP_PORT")); port != "" {
 		if _, err := strconv.Atoi(port); err != nil {
 			s.settingsError(w, "SMTP_PORT must be a number")
+			return
+		}
+	}
+	if win := strings.TrimSpace(r.FormValue("FETCH_WINDOW_DAYS")); win != "" {
+		if n, err := strconv.Atoi(win); err != nil || n < 1 {
+			s.settingsError(w, "FETCH_WINDOW_DAYS must be a positive number of days")
 			return
 		}
 	}

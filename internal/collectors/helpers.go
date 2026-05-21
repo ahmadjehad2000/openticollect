@@ -6,11 +6,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"openticollect/internal/matcher"
 	"openticollect/internal/models"
 )
+
+// fetchWindow converts a configured day count into a look-back duration,
+// defaulting to 30 days when unset.
+func fetchWindow(days int) time.Duration {
+	if days < 1 {
+		days = 30
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
 
 // scanText runs the matcher over text and builds a Finding for every keyword hit.
 // This is the shared path every text-matching collector uses to produce findings.

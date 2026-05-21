@@ -5,10 +5,34 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"openticollect/internal/config"
 	"openticollect/internal/models"
 )
+
+func TestOTXUsesFetchWindow(t *testing.T) {
+	var since string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		since = r.URL.Query().Get("modified_since")
+		w.Write([]byte(`{"results":[]}`))
+	}))
+	defer srv.Close()
+
+	o := NewOTX(&config.Config{OTXAPIKey: "k", FetchWindowDays: 14})
+	o.baseURL = srv.URL
+	if _, err := o.Run(context.Background(), Input{HTTP: srv.Client(), Logger: testLogger()}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	ts, err := time.Parse(time.RFC3339, since)
+	if err != nil {
+		t.Fatalf("modified_since not RFC3339: %q", since)
+	}
+	want := time.Now().Add(-14 * 24 * time.Hour)
+	if d := ts.Sub(want); d < -2*time.Hour || d > 2*time.Hour {
+		t.Fatalf("modified_since = %v, want ~%v (the configured 14-day window)", ts, want)
+	}
+}
 
 func TestOTXRunMatchesPulse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

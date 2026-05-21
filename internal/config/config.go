@@ -42,6 +42,9 @@ type Config struct {
 	TorProxy    string
 	OnionURLs   []string
 	EnableAhmia bool
+
+	// FetchWindowDays is how far back time-windowed collectors look.
+	FetchWindowDays int
 }
 
 // defaultRSSFeeds is the out-of-the-box watchlist of security/breach feeds.
@@ -105,6 +108,15 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		return nil, fmt.Errorf("config: SMTP_PORT invalid: %w", err)
 	}
 	cfg.SMTPPort = port
+
+	window, err := strconv.Atoi(str("FETCH_WINDOW_DAYS", "30"))
+	if err != nil {
+		return nil, fmt.Errorf("config: FETCH_WINDOW_DAYS invalid: %w", err)
+	}
+	if window < 1 {
+		window = 1
+	}
+	cfg.FetchWindowDays = window
 
 	switch cfg.LogLevel {
 	case "debug", "info", "warn", "error":

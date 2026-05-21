@@ -14,12 +14,17 @@ import (
 
 // OTX collects subscribed pulses from AlienVault OTX.
 type OTX struct {
-	key     string
-	baseURL string
+	key        string
+	baseURL    string
+	windowDays int
 }
 
 func NewOTX(cfg *config.Config) *OTX {
-	return &OTX{key: cfg.OTXAPIKey, baseURL: "https://otx.alienvault.com"}
+	return &OTX{
+		key:        cfg.OTXAPIKey,
+		baseURL:    "https://otx.alienvault.com",
+		windowDays: cfg.FetchWindowDays,
+	}
 }
 
 func (o *OTX) Name() string            { return "otx" }
@@ -50,7 +55,7 @@ type otxPulse struct {
 func (o *OTX) Run(ctx context.Context, in Input) (Result, error) {
 	q := url.Values{}
 	q.Set("limit", "50")
-	q.Set("modified_since", time.Now().Add(-24*time.Hour).UTC().Format(time.RFC3339))
+	q.Set("modified_since", time.Now().Add(-fetchWindow(o.windowDays)).UTC().Format(time.RFC3339))
 	endpoint := o.baseURL + "/api/v1/pulses/subscribed?" + q.Encode()
 
 	var resp otxResponse
