@@ -64,19 +64,62 @@ func (d *Darkweb) Run(ctx context.Context, in Input) (Result, error) {
 		if in.Tor == nil {
 			in.Logger.Warn("darkweb: ONION_URLS set but TOR_PROXY is unconfigured; skipping onion watchlist")
 		} else {
-			for _, onion := range d.onionURLs {
-				doc, err := fetchDoc(ctx, in.Tor, onion)
-				if err != nil {
-					in.Logger.Warn("darkweb: onion fetch failed", "url", onion, "err", err)
-					continue
-				}
-				res.ItemsFetched++
-				text := strings.TrimSpace(doc.Find("body").Text())
-				res.Findings = append(res.Findings, scanText("darkweb", onion, text, "", m)...)
-			}
+			d.crawlOnions(ctx, in, m, &res)
 		}
 	}
 	return res, nil
+}
+
+// crawlOnions fetches each watchlisted .onion site and follows its same-host
+// links one level deep, so a single configured onion yields broader coverage.
+func (d *Darkweb) crawlOnions(ctx context.Context, in Input, m *matcher.Matcher, res *Result) {
+	const maxOnionPages = 30
+	const maxOnionLinks = 6
+
+	visited := map[string]bool{}
+	queue := make([]scrapeTask, 0, len(d.onionURLs))
+	for _, o := range d.onionURLs {
+		queue = append(queue, scrapeTask{url: o, depth: 0})
+	}
+
+	for len(queue) > 0 && len(visited) < maxOnionPages {
+		task := queue[0]
+		queue = queue[1:]
+
+		norm := normalizeURL(task.url)
+		if norm == "" || visited[norm] {
+			continue
+		}
+		visited[norm] = true
+
+		u, err := url.Parse(task.url)
+		if err != nil {
+			in.Logger.Warn("darkweb: bad onion URL", "url", task.url, "err", err)
+			continue
+		}
+		doc, err := fetchDoc(ctx, in.Tor, task.url)
+		if err != nil {
+			in.Logger.Warn("darkweb: onion fetch failed", "url", task.url, "err", err)
+			continue
+		}
+		res.ItemsFetched++
+		links := sameHostLinks(doc, u)
+		res.Findings = append(res.Findings,
+			scanText("darkweb", task.url, extractCorpus(doc), "", m)...)
+
+		if task.depth < 1 {
+			added := 0
+			for _, l := range links {
+				if added >= maxOnionLinks {
+					break
+				}
+				if !visited[normalizeURL(l)] {
+					queue = append(queue, scrapeTask{url: l, depth: task.depth + 1})
+					added++
+				}
+			}
+		}
+	}
 }
 
 // ahmiaSearch queries Ahmia for a keyword; every returned result is a hit for it.

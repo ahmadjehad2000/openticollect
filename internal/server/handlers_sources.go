@@ -1,7 +1,12 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"html/template"
 	"net/http"
+	"strings"
+	"time"
 
 	"openticollect/internal/collectors"
 	"openticollect/internal/models"
@@ -79,4 +84,49 @@ func (s *Server) collectorByName(name string) collectors.Collector {
 		}
 	}
 	return nil
+}
+
+// handleSourceTest runs one collector on demand and reports the outcome — used
+// to verify an API key or a source's reachability from the Sources page.
+func (s *Server) handleSourceTest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	col := s.collectorByName(r.PathValue("name"))
+	if col == nil {
+		w.Write([]byte(`<span class="status-err">unknown source</span>`))
+		return
+	}
+	if !col.Enabled(s.cfg) {
+		w.Write([]byte(`<span class="status-err">misconfigured — needs ` +
+			template.HTMLEscapeString(strings.Join(col.MissingEnv(s.cfg), ", ")) + `</span>`))
+		return
+	}
+	keywords, err := s.store.EnabledKeywords()
+	if err != nil {
+		w.Write([]byte(`<span class="status-err">` +
+			template.HTMLEscapeString(err.Error()) + `</span>`))
+		return
+	}
+
+	var tor *http.Client
+	if s.cfg.TorProxy != "" {
+		if tc, terr := collectors.TorClient(s.cfg.TorProxy); terr == nil {
+			tor = tc
+		}
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+	defer cancel()
+	res, runErr := col.Run(ctx, collectors.Input{
+		Keywords: keywords,
+		HTTP:     collectors.DefaultHTTPClient(),
+		Tor:      tor,
+		Logger:   s.log,
+	})
+	if runErr != nil {
+		w.Write([]byte(`<span class="status-err">failed: ` +
+			template.HTMLEscapeString(runErr.Error()) + `</span>`))
+		return
+	}
+	w.Write([]byte(fmt.Sprintf(
+		`<span class="status-ok">ok — %d items fetched, %d matches</span>`,
+		res.ItemsFetched, len(res.Findings))))
 }

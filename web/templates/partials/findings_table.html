@@ -1,12 +1,14 @@
 {{define "findings_table"}}
+<div class="table-wrap">
 <table class="data-table">
 <thead><tr>
 <th>Time</th><th>Source</th><th>Keyword</th><th>Excerpt</th><th>Severity</th><th>Status</th>
 </tr></thead>
 <tbody>
 {{if .}}{{range .}}{{template "findings_row" .}}{{end}}{{else}}
-<tr><td colspan="6"><div class="empty">No findings yet. Sources will populate this as they run.</div></td></tr>
+<tr><td colspan="6"><div class="empty">No findings to show here.</div></td></tr>
 {{end}}
 </tbody>
 </table>
+</div>
 {{end}}

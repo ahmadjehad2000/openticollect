@@ -12,9 +12,14 @@ web UI — no CGO, no external services, no front-end build step.
   feeds, public Telegram channels and the dark web (see the table below).
 - **Keyword watchlist** — literal or regex, each with a severity.
 - **Findings** stored in SQLite with automatic deduplication.
+- **Correlation engine** — a built-in *smart* engine (multi-source corroboration
+  and activity-burst detection) plus user-defined *custom* rules, raising
+  higher-confidence correlated alerts.
 - **Notifiers** — webhook (HMAC-signed) and email, each severity-gated.
-- **Web UI** — server-rendered dashboard, findings, sources, keywords and settings
-  pages, with light/dark themes.
+- **Web UI** — server-rendered dark security console: dashboard, findings,
+  correlation, sources, keywords and settings pages.
+- **Hardened** — strict Content-Security-Policy and security headers on every
+  response; optional HTTP basic auth.
 - **Single static binary** — `CGO_ENABLED=0`, web assets embedded.
 
 ## Sources
@@ -90,6 +95,16 @@ Findings are `POST`ed as JSON. If `WEBHOOK_SECRET` is set, the request carries
 }
 ```
 
+## Correlation
+
+The **smart engine** runs by default with no configuration: it raises a
+correlated alert when a keyword is corroborated by 2 or more distinct sources
+within 24h, or when 5 or more findings for one keyword indicate an activity
+burst. **Custom rules** (managed on the Correlation page) let you set precise
+thresholds — keyword, minimum sources, minimum count, time window and the
+severity to assign. Correlated alerts appear in Findings under source
+`correlation` and are dispatched to notifiers like any other finding.
+
 ## Project layout
 
 ```
@@ -100,7 +115,8 @@ internal/
   models/        shared data types
   matcher/       literal + regex keyword matching
   collectors/    the 12 source collectors + scheduler input
-  scheduler/     per-collector goroutines, jitter, backoff
+  correlation/   smart + custom correlation engines
+  scheduler/     per-collector goroutines, jitter, backoff, periodic correlation
   notifier/      webhook + email fan-out
   server/        HTTP handlers, middleware, templates
 web/             embedded templates and static assets

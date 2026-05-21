@@ -1,0 +1,18 @@
+{{define "rule_row"}}
+<tr id="rule-{{.ID}}">
+<td><strong>{{.Name}}</strong></td>
+<td class="mono">{{if .Keyword}}{{.Keyword}}{{else}}<span class="muted">any</span>{{end}}</td>
+<td class="mono">{{.MinSources}}</td>
+<td class="mono">{{.MinCount}}</td>
+<td class="mono">{{.WindowMinutes}}m</td>
+<td><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></td>
+<td>
+<button class="toggle {{if .Enabled}}on{{else}}off{{end}}" type="button" aria-label="toggle"
+hx-post="/correlation/{{.ID}}/toggle" hx-target="#rule-{{.ID}}" hx-swap="outerHTML"></button>
+</td>
+<td>
+<button class="btn btn-sm" type="button" hx-post="/correlation/{{.ID}}/delete"
+hx-target="#rule-{{.ID}}" hx-swap="outerHTML" hx-confirm="Delete this rule?">Delete</button>
+</td>
+</tr>
+{{end}}

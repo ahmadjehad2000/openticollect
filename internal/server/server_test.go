@@ -76,8 +76,8 @@ func TestDashboardRoot(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET / = %d, want 200", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "openticollect") {
-		t.Fatal("dashboard body should contain the brand")
+	if !strings.Contains(rec.Body.String(), `class="brand"`) {
+		t.Fatal("dashboard body should contain the brand element")
 	}
 }
 
@@ -122,6 +122,26 @@ func TestFindingsSearchFilter(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, ">alpha<") || strings.Contains(body, ">beta<") {
 		t.Fatal("search filter should show only the alpha finding")
+	}
+}
+
+func TestArchiveSeparatesReviewedFindings(t *testing.T) {
+	srv, st := newTestServer(t)
+	_, err := st.InsertFindings([]models.Finding{
+		{Source: "otx", MatchedKeyword: "active-one", Severity: "warn", Excerpt: "e", Hash: "n1", Status: "new"},
+		{Source: "otx", MatchedKeyword: "archived-one", Severity: "warn", Excerpt: "e", Hash: "r1", Status: "reviewed"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	findings := do(srv, http.MethodGet, "/findings").Body.String()
+	if !strings.Contains(findings, "active-one") || strings.Contains(findings, "archived-one") {
+		t.Fatal("/findings should show only new findings")
+	}
+	archive := do(srv, http.MethodGet, "/archive").Body.String()
+	if !strings.Contains(archive, "archived-one") || strings.Contains(archive, "active-one") {
+		t.Fatal("/archive should show only reviewed/suppressed findings")
 	}
 }
 
@@ -189,14 +209,9 @@ func TestKeywordAddAndDuplicate(t *testing.T) {
 
 func TestSettingsMasksSecrets(t *testing.T) {
 	secret := "supersecretkey9999"
-	srv, _ := newTestServerWith(t, &config.Config{
-		OTXAPIKey:          secret,
-		ListenAddr:         ":8080",
-		DatabasePath:       "x.db",
-		LogLevel:           "info",
-		WebhookMinSeverity: "warn",
-		EmailMinSeverity:   "critical",
-	})
+	t.Setenv("OTX_API_KEY", secret)
+	srv, _ := newTestServer(t)
+
 	rec := do(srv, http.MethodGet, "/settings")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /settings = %d", rec.Code)
@@ -207,6 +222,33 @@ func TestSettingsMasksSecrets(t *testing.T) {
 	}
 	if !strings.Contains(body, config.Mask(secret)) {
 		t.Fatalf("masked secret %q missing from settings page", config.Mask(secret))
+	}
+}
+
+func TestSettingsSavePersists(t *testing.T) {
+	srv, st := newTestServer(t)
+	rec := doForm(srv, http.MethodPost, "/settings",
+		"OTX_API_KEY=newkey123&WEBHOOK_MIN_SEVERITY=warn&EMAIL_MIN_SEVERITY=critical&LOG_LEVEL=info")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /settings = %d", rec.Code)
+	}
+	all, err := st.AllSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all["OTX_API_KEY"] != "newkey123" {
+		t.Fatalf("OTX_API_KEY not persisted: %#v", all)
+	}
+}
+
+func TestSettingsSaveRejectsBadSeverity(t *testing.T) {
+	srv, st := newTestServer(t)
+	rec := doForm(srv, http.MethodPost, "/settings", "WEBHOOK_MIN_SEVERITY=loud")
+	if !strings.Contains(rec.Body.String(), "error-banner") {
+		t.Fatal("invalid severity should return an error banner")
+	}
+	if all, _ := st.AllSettings(); len(all) != 0 {
+		t.Fatal("nothing should be persisted when validation fails")
 	}
 }
 
@@ -230,6 +272,37 @@ func TestHandleTestWebhook(t *testing.T) {
 	}
 	if atomic.LoadInt32(&got) != 1 {
 		t.Fatal("the webhook endpoint did not receive the test request")
+	}
+}
+
+func TestCorrelationPageAndRuleAdd(t *testing.T) {
+	srv, st := newTestServer(t)
+
+	rec := do(srv, http.MethodGet, "/correlation")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /correlation = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "Smart correlation") {
+		t.Fatal("correlation page should describe the smart engine")
+	}
+
+	rec = doForm(srv, http.MethodPost, "/correlation",
+		"name=watched+domains&keyword=acme.com&min_sources=2&min_count=3&window_minutes=120&severity=critical")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("add rule = %d, want 200", rec.Code)
+	}
+	rules, err := st.ListCorrelationRules()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 1 || rules[0].Name != "watched domains" || rules[0].Severity != "critical" {
+		t.Fatalf("rule not stored correctly: %#v", rules)
+	}
+
+	rec = doForm(srv, http.MethodPost, "/correlation",
+		"name=&keyword=&min_sources=2&min_count=1&window_minutes=60&severity=warn")
+	if !strings.Contains(rec.Body.String(), "error-banner") {
+		t.Fatal("a rule with no name should return an error banner")
 	}
 }
 

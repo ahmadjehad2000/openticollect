@@ -47,7 +47,7 @@ func newSched(t *testing.T, c collectors.Collector, sink notifier.Sink) (*Schedu
 	} else {
 		n = notifier.New(nil)
 	}
-	s := New(cfg, st, n, []collectors.Collector{c}, collectors.DefaultHTTPClient(), nil, nil)
+	s := New(cfg, st, n, []collectors.Collector{c}, nil, collectors.DefaultHTTPClient(), nil, nil)
 	return s, st
 }
 

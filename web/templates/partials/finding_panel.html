@@ -1,21 +1,48 @@
 {{define "finding_panel"}}
 <div class="panel">
+<div class="panel-head">
+<span class="badge {{sevClass .Severity}}">{{.Severity}}</span>
 <h3>Finding #{{.ID}}</h3>
+<span class="badge badge-{{.Status}}">{{.Status}}</span>
+</div>
+<div class="panel-body">
+
+<div class="found-at">
+{{icon "search"}}
+<div>
+<div class="found-label">Where it was found</div>
+<div>
+<span class="found-src">{{.Source}}</span>
+{{if .SourceURL}}— <a href="{{.SourceURL}}" target="_blank" rel="noreferrer noopener">{{.SourceURL}} {{icon "external"}}</a>{{else}}<span class="muted"> — no source URL reported</span>{{end}}
+</div>
+</div>
+</div>
+
 <dl>
-<dt>Time</dt><dd>{{fmtTime .CreatedAt}}</dd>
-<dt>Source</dt><dd>{{.Source}}</dd>
-<dt>Keyword</dt><dd class="mono">{{.MatchedKeyword}}</dd>
-<dt>Severity</dt><dd><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></dd>
-<dt>Status</dt><dd><span class="badge badge-{{.Status}}">{{.Status}}</span></dd>
-<dt>Source URL</dt><dd>{{if .SourceURL}}<a href="{{.SourceURL}}" target="_blank" rel="noreferrer noopener">{{.SourceURL}}</a>{{else}}—{{end}}</dd>
-<dt>Excerpt</dt><dd>{{.Excerpt}}</dd>
+<dt>Detected</dt><dd class="mono">{{fmtTime .CreatedAt}}</dd>
+<dt>Matched keyword</dt><dd class="mono">{{.MatchedKeyword}}</dd>
+<dt>Collector</dt><dd>{{.Source}}</dd>
 </dl>
-{{if .Raw}}<details><summary class="muted">Raw payload</summary><pre class="raw-json">{{.Raw}}</pre></details>{{end}}
+
+<h2>Excerpt</h2>
+<div class="excerpt-box">{{.Excerpt}}</div>
+
+{{if .Raw}}
+<h2>Raw payload</h2>
+<details><summary>Show raw JSON</summary><pre class="raw-json">{{.Raw}}</pre></details>
+{{end}}
+
 <div class="panel-actions">
-<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=reviewed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">Mark reviewed</button>
-<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=suppressed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">Suppress</button>
-<button class="btn btn-sm" hx-post="/findings/{{.ID}}/resend" hx-target="#resend-result" hx-swap="innerHTML">Resend alert</button>
+{{if eq .Status "new"}}
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=reviewed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "check"}} Mark reviewed</button>
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=suppressed" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "x"}} Suppress</button>
+{{else}}
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/status?status=new" hx-target="#finding-{{.ID}}" hx-swap="outerHTML">{{icon "refresh"}} Restore to active</button>
+{{end}}
+<button class="btn btn-sm" hx-post="/findings/{{.ID}}/resend" hx-target="#resend-result" hx-swap="innerHTML">{{icon "refresh"}} Resend alert</button>
 <span id="resend-result" class="muted"></span>
+</div>
+
 </div>
 </div>
 {{end}}

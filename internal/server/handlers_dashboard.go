@@ -45,7 +45,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if kws, err := s.store.ListKeywords(); err == nil {
 		d.KPIs.WatchlistSize = len(kws)
 	}
-	if recent, _, err := s.store.ListFindings(store.FindingFilter{Limit: 25}); err == nil {
+	if recent, _, err := s.store.ListFindings(store.FindingFilter{
+		Statuses: []string{"new"}, Limit: 25,
+	}); err == nil {
 		d.Recent = recent
 	}
 

@@ -1,5 +1,7 @@
 {{define "findings_row"}}
-<tr id="finding-{{.ID}}" class="clickable" hx-get="/findings/{{.ID}}" hx-target="#finding-panel" hx-swap="innerHTML">
+<tr id="finding-{{.ID}}" class="clickable sev-{{.Severity}}"
+    hx-get="/findings/{{.ID}}" hx-target="#finding-panel"
+    hx-swap="innerHTML show:#finding-panel:top">
 <td class="mono">{{fmtTime .CreatedAt}}</td>
 <td>{{.Source}}</td>
 <td class="mono">{{.MatchedKeyword}}</td>

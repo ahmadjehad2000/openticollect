@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Data}}
 {{if .Err}}<div class="error-banner">{{.Err}}</div>{{end}}
-<form class="filter-bar" method="get" action="/findings">
+<form class="filter-bar" method="get" action="{{.BasePath}}">
 <input type="search" name="q" placeholder="Search keyword or excerpt" value="{{.Filter.Search}}">
 <select name="severity">
 <option value="">All severities</option>
@@ -10,7 +10,7 @@
 <option value="critical"{{if eq .Filter.Severity "critical"}} selected{{end}}>critical</option>
 </select>
 {{range .Sources}}
-<label class="muted"><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
+<label><input type="checkbox" name="source" value="{{.Name}}"{{if .Checked}} checked{{end}}> {{.Name}}</label>
 {{end}}
 <button class="btn btn-primary" type="submit">Filter</button>
 </form>

@@ -42,3 +42,20 @@ CREATE TABLE IF NOT EXISTS source_state (
   source TEXT PRIMARY KEY,
   enabled INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS correlation_rules (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  keyword TEXT NOT NULL DEFAULT '',
+  min_sources INTEGER NOT NULL DEFAULT 2,
+  min_count INTEGER NOT NULL DEFAULT 1,
+  window_minutes INTEGER NOT NULL DEFAULT 1440,
+  severity TEXT NOT NULL CHECK (severity IN ('info','warn','critical')) DEFAULT 'warn',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -44,6 +44,14 @@ type Config struct {
 	EnableAhmia bool
 }
 
+// defaultRSSFeeds is the out-of-the-box watchlist of security/breach feeds.
+const defaultRSSFeeds = "https://www.databreaches.net/feed/," +
+	"https://krebsonsecurity.com/feed/," +
+	"https://www.bleepingcomputer.com/feed/," +
+	"https://feeds.feedburner.com/TheHackersNews," +
+	"https://www.darkreading.com/rss.xml," +
+	"https://therecord.media/feed/"
+
 // Load reads .env (if present) then the process environment.
 func Load() (*Config, error) {
 	_ = godotenv.Load() // absent .env is fine
@@ -84,7 +92,7 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		NVDAPIKey:    getenv("NVD_API_KEY"),
 
 		WebscraperURLs:   splitList(getenv("WEBSCRAPER_URLS")),
-		RSSFeeds:         splitList(getenv("RSS_FEEDS")),
+		RSSFeeds:         splitList(str("RSS_FEEDS", defaultRSSFeeds)),
 		TelegramChannels: splitList(getenv("TELEGRAM_CHANNELS")),
 
 		TorProxy:    getenv("TOR_PROXY"),

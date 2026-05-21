@@ -1,13 +1,14 @@
 {{define "nav"}}
 <nav class="topbar">
 <div class="container topbar-inner">
-<a class="brand" href="/">openticollect</a>
+<a class="brand" href="/">open<span class="brand-accent">ti</span>collect</a>
 <div class="navlinks">
 <a href="/findings"{{if eq .Nav "findings"}} class="active"{{end}}>Findings</a>
+<a href="/archive"{{if eq .Nav "archive"}} class="active"{{end}}>Archive</a>
+<a href="/correlation"{{if eq .Nav "correlation"}} class="active"{{end}}>Correlation</a>
 <a href="/sources"{{if eq .Nav "sources"}} class="active"{{end}}>Sources</a>
 <a href="/keywords"{{if eq .Nav "keywords"}} class="active"{{end}}>Keywords</a>
 <a href="/settings"{{if eq .Nav "settings"}} class="active"{{end}}>Settings</a>
-<button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">{{icon "theme"}}</button>
 </div>
 </div>
 </nav>

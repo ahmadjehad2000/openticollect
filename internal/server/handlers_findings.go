@@ -17,6 +17,7 @@ type findingsData struct {
 	Findings   []models.Finding
 	Filter     filterState
 	Sources    []sourceCheck
+	BasePath   string // "/findings" or "/archive"
 	Page       int
 	TotalPages int
 	Total      int
@@ -34,7 +35,20 @@ type sourceCheck struct {
 	Checked bool
 }
 
+// handleFindings lists active (status=new) findings.
 func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
+	s.findingList(w, r, "/findings", "findings", "Findings",
+		"Active keyword matches across all sources.", []string{"new"})
+}
+
+// handleArchive lists reviewed and suppressed findings.
+func (s *Server) handleArchive(w http.ResponseWriter, r *http.Request) {
+	s.findingList(w, r, "/archive", "archive", "Archive",
+		"Findings you have reviewed or suppressed.", []string{"reviewed", "suppressed"})
+}
+
+func (s *Server) findingList(w http.ResponseWriter, r *http.Request,
+	base, nav, heading, desc string, statuses []string) {
 	q := r.URL.Query()
 	page := 1
 	if p, err := strconv.Atoi(q.Get("page")); err == nil && p > 1 {
@@ -45,22 +59,30 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 		Sources:  selected,
 		Severity: q.Get("severity"),
 		Search:   strings.TrimSpace(q.Get("q")),
+		Statuses: statuses,
 		Limit:    findingsPerPage,
 		Offset:   (page - 1) * findingsPerPage,
 	}
 
 	d := findingsData{
-		Filter: filterState{Search: filter.Search, Severity: filter.Severity},
-		Page:   page,
+		Filter:   filterState{Search: filter.Search, Severity: filter.Severity},
+		BasePath: base,
+		Page:     page,
 	}
 	for _, c := range s.cols {
 		d.Sources = append(d.Sources, sourceCheck{Name: c.Name(), Checked: contains(selected, c.Name())})
 	}
 
+	render := func() {
+		s.render(w, "findings", pageData{
+			Nav: nav, Title: heading, Heading: heading, Description: desc, Data: d,
+		})
+	}
+
 	findings, total, err := s.store.ListFindings(filter)
 	if err != nil {
 		d.Err = "Failed to load findings: " + err.Error()
-		s.renderFindings(w, d)
+		render()
 		return
 	}
 	d.Findings = findings
@@ -71,16 +93,9 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 	}
 	d.HasPrev = page > 1
 	d.HasNext = page < d.TotalPages
-	d.PrevURL = findingsURL(q, page-1)
-	d.NextURL = findingsURL(q, page+1)
-	s.renderFindings(w, d)
-}
-
-func (s *Server) renderFindings(w http.ResponseWriter, d findingsData) {
-	s.render(w, "findings", pageData{
-		Nav: "findings", Title: "Findings", Heading: "Findings",
-		Description: "Keyword matches across all sources.", Data: d,
-	})
+	d.PrevURL = pageURL(base, q, page-1)
+	d.NextURL = pageURL(base, q, page+1)
+	render()
 }
 
 func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +112,9 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 	s.renderPartial(w, "finding_panel", f)
 }
 
+// handleFindingStatus changes a finding's status. Because the change moves the
+// finding between the Findings and Archive lists, the response removes the row
+// from the current view and clears the detail panel.
 func (s *Server) handleFindingStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -107,12 +125,8 @@ func (s *Server) handleFindingStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	f, err := s.store.GetFinding(id)
-	if err != nil {
-		http.Error(w, "finding not found", http.StatusNotFound)
-		return
-	}
-	s.renderPartial(w, "findings_row", f)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(`<div id="finding-panel" hx-swap-oob="true"></div>`))
 }
 
 func (s *Server) handleFindingResend(w http.ResponseWriter, r *http.Request) {
@@ -136,8 +150,8 @@ func (s *Server) handleFindingResend(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`<span class="status-ok">Alert re-dispatched</span>`))
 }
 
-// findingsURL rebuilds the current query with a new page number.
-func findingsURL(q url.Values, page int) string {
+// pageURL rebuilds base's query with a new page number.
+func pageURL(base string, q url.Values, page int) string {
 	c := url.Values{}
 	for k, v := range q {
 		if k != "page" {
@@ -145,7 +159,7 @@ func findingsURL(q url.Values, page int) string {
 		}
 	}
 	c.Set("page", strconv.Itoa(page))
-	return "/findings?" + c.Encode()
+	return base + "?" + c.Encode()
 }
 
 func contains(ss []string, target string) bool {
