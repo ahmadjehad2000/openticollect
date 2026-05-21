@@ -16,6 +16,7 @@ type Config struct {
 	LogLevel      string
 	BasicAuthUser string
 	BasicAuthPass string
+	APIKey        string
 
 	WebhookURL         string
 	WebhookSecret      string
@@ -77,6 +78,7 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		LogLevel:      str("LOG_LEVEL", "info"),
 		BasicAuthUser: getenv("BASIC_AUTH_USER"),
 		BasicAuthPass: getenv("BASIC_AUTH_PASS"),
+		APIKey:        getenv("API_KEY"),
 
 		WebhookURL:         getenv("WEBHOOK_URL"),
 		WebhookSecret:      getenv("WEBHOOK_SECRET"),

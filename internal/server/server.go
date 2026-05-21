@@ -167,10 +167,19 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /settings/test-webhook", s.handleTestWebhook)
 	mux.HandleFunc("POST /settings/test-email", s.handleTestEmail)
 
-	// Basic auth (when configured) guards everything except static + health.
+	// JSON read API — bearer-token guarded, bypasses HTML basic-auth.
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("GET /api/findings", s.handleAPIFindings)
+	apiMux.HandleFunc("GET /api/findings/{id}", s.handleAPIFindingDetail)
+	apiMux.HandleFunc("GET /api/indicators", s.handleAPIIndicators)
+	mux.Handle("/api/", s.apiGuard(apiMux))
+
+	// Basic auth (when configured) guards everything except static, health, and API.
 	authed := basicAuth(s.cfg.BasicAuthUser, s.cfg.BasicAuthPass, mux)
 	guard := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/healthz" {
+		if strings.HasPrefix(r.URL.Path, "/static/") ||
+			strings.HasPrefix(r.URL.Path, "/api/") ||
+			r.URL.Path == "/healthz" {
 			mux.ServeHTTP(w, r)
 			return
 		}
