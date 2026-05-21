@@ -23,7 +23,7 @@ func scanFinding(r rowScanner) (models.Finding, error) {
 		notified  sql.NullTime
 	)
 	err := r.Scan(&f.ID, &f.Source, &sourceURL, &f.MatchedKeyword, &f.Severity,
-		&f.Excerpt, &raw, &f.Hash, &f.Status, &notified, &f.CreatedAt)
+		&f.Excerpt, &raw, &f.Hash, &f.Status, &notified, &f.CreatedAt, &f.RiskScore)
 	if err != nil {
 		return models.Finding{}, fmt.Errorf("store: scan finding: %w", err)
 	}

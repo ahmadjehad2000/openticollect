@@ -15,6 +15,8 @@ type FindingFilter struct {
 	Severity string
 	Search   string   // matches matched_keyword or excerpt
 	Statuses []string // status IN (...)
+	MinRisk  int      // findings with risk_score >= MinRisk; 0 = no filter
+	Sort     string   // "risk" => ORDER BY risk_score DESC; default => created_at DESC
 	Limit    int
 	Offset   int
 }
@@ -76,6 +78,10 @@ func (s *Store) ListFindings(f FindingFilter) ([]models.Finding, int, error) {
 		}
 		where = append(where, "status IN ("+strings.Join(ph, ",")+")")
 	}
+	if f.MinRisk > 0 {
+		where = append(where, "risk_score >= ?")
+		args = append(args, f.MinRisk)
+	}
 	clause := ""
 	if len(where) > 0 {
 		clause = " WHERE " + strings.Join(where, " AND ")
@@ -91,10 +97,14 @@ func (s *Store) ListFindings(f FindingFilter) ([]models.Finding, int, error) {
 		limit = 50
 	}
 	pageArgs := append(append([]any{}, args...), limit, f.Offset)
+	order := "created_at DESC"
+	if f.Sort == "risk" {
+		order = "risk_score DESC, created_at DESC"
+	}
 	rows, err := s.db.Query(
 		`SELECT id, source, source_url, matched_keyword, severity, excerpt, raw,
-		        hash, status, notified_at, created_at
-		 FROM findings`+clause+` ORDER BY created_at DESC LIMIT ? OFFSET ?`, pageArgs...)
+		        hash, status, notified_at, created_at, risk_score
+		 FROM findings`+clause+` ORDER BY `+order+` LIMIT ? OFFSET ?`, pageArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("store: list findings: %w", err)
 	}
@@ -114,7 +124,7 @@ func (s *Store) ListFindings(f FindingFilter) ([]models.Finding, int, error) {
 func (s *Store) GetFinding(id int64) (models.Finding, error) {
 	row := s.db.QueryRow(
 		`SELECT id, source, source_url, matched_keyword, severity, excerpt, raw,
-		        hash, status, notified_at, created_at FROM findings WHERE id = ?`, id)
+		        hash, status, notified_at, created_at, risk_score FROM findings WHERE id = ?`, id)
 	f, err := scanFinding(row)
 	if err != nil {
 		if errors.Is(err, errNoRows) {
@@ -131,6 +141,14 @@ func (s *Store) SetFindingStatus(id int64, status string) error {
 	}
 	if _, err := s.db.Exec(`UPDATE findings SET status = ? WHERE id = ?`, status, id); err != nil {
 		return fmt.Errorf("store: set finding status: %w", err)
+	}
+	return nil
+}
+
+// SetFindingRisk stores a computed risk score for a finding.
+func (s *Store) SetFindingRisk(id int64, score int) error {
+	if _, err := s.db.Exec(`UPDATE findings SET risk_score = ? WHERE id = ?`, score, id); err != nil {
+		return fmt.Errorf("store: set finding risk: %w", err)
 	}
 	return nil
 }

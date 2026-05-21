@@ -178,6 +178,9 @@ func (s *Scheduler) runCollector(ctx context.Context, c collectors.Collector) er
 	}
 
 	if len(inserted) > 0 {
+		for _, err := range enrichFindings(s.store, inserted) {
+			s.log.Warn("scheduler: enrichment failed", "collector", c.Name(), "err", err)
+		}
 		s.dispatch(ctx, inserted)
 		s.correlate(ctx)
 	}
@@ -228,6 +231,9 @@ func (s *Scheduler) correlate(ctx context.Context) {
 		return
 	}
 	if len(inserted) > 0 {
+		for _, err := range enrichFindings(s.store, inserted) {
+			s.log.Warn("scheduler: correlation enrichment failed", "err", err)
+		}
 		s.log.Info("scheduler: correlation alerts raised", "count", len(inserted))
 		s.dispatch(ctx, inserted)
 	}

@@ -15,7 +15,7 @@ func (s *Store) FindingsSince(t time.Time) ([]models.Finding, error) {
 	cutoff := t.UTC().Format("2006-01-02 15:04:05")
 	rows, err := s.db.Query(
 		`SELECT id, source, source_url, matched_keyword, severity, excerpt, raw,
-		        hash, status, notified_at, created_at
+		        hash, status, notified_at, created_at, risk_score
 		 FROM findings WHERE created_at >= ? ORDER BY created_at DESC`, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("store: findings since: %w", err)
