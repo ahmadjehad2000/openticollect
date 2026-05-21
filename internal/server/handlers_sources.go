@@ -74,6 +74,10 @@ func (s *Server) collectorStatus(c collectors.Collector) models.SourceStatus {
 	if t, ok := s.sched.NextRun(c.Name()); ok {
 		st.NextRun = &t
 	}
+	if rate, runs, err := s.store.SourceHealth(c.Name(), 20); err == nil {
+		st.SuccessRate = rate
+		st.Runs = runs
+	}
 	return st
 }
 

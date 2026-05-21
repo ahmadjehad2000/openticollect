@@ -29,6 +29,9 @@ const (
 	correlationLookback = 7 * 24 * time.Hour
 	// correlationInterval is how often the periodic correlation pass runs.
 	correlationInterval = 2 * time.Minute
+	// quietAfterFailures auto-disables a source after this many consecutive
+	// failed runs, so a persistently broken source stops consuming a slot.
+	quietAfterFailures = 12
 )
 
 type Scheduler struct {
@@ -175,6 +178,15 @@ func (s *Scheduler) runCollector(ctx context.Context, c collectors.Collector) er
 	if recErr := s.store.RecordRun(c.Name(), started, finished, runErr == nil,
 		res.ItemsFetched, len(inserted), errStr); recErr != nil {
 		s.log.Error("scheduler: record run failed", "collector", c.Name(), "err", recErr)
+	}
+
+	if runErr != nil {
+		if fails, ferr := s.store.ConsecutiveFailures(c.Name()); ferr == nil && fails >= quietAfterFailures {
+			if err := s.store.SetSourceEnabled(c.Name(), false); err == nil {
+				s.log.Warn("scheduler: source auto-quieted after persistent failures",
+					"collector", c.Name(), "consecutive_failures", fails)
+			}
+		}
 	}
 
 	if len(inserted) > 0 {

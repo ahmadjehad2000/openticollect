@@ -66,12 +66,14 @@ type CorrelationRule struct {
 
 // SourceStatus is a view model assembled by the server from scheduler + store data.
 type SourceStatus struct {
-	Name       string
-	Status     string // "enabled" | "disabled" | "misconfigured"
-	LastRun    *time.Time
-	NextRun    *time.Time
-	LastError  string
-	MissingEnv []string
+	Name        string
+	Status      string // "enabled" | "disabled" | "misconfigured"
+	LastRun     *time.Time
+	NextRun     *time.Time
+	LastError   string
+	MissingEnv  []string
+	SuccessRate int // 0–100 over recent runs
+	Runs        int // number of recent runs the rate is based on
 }
 
 // SeverityRank orders severities for notifier gating. Unknown => 0.
