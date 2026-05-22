@@ -61,6 +61,19 @@ const defaultRSSFeeds = "https://www.databreaches.net/feed/," +
 	"https://ransomware.live/rss.xml," +
 	"https://www.ransomlook.io/rss"
 
+// defaultTelegramChannels is the out-of-the-box public Telegram watchlist. The
+// telegram collector scrapes each channel's public t.me/s/ preview feed for
+// watchlist-keyword mentions — leak/breach chatter naming a brand asset.
+//
+// Only channels verified live at the time of writing are listed: the criminal
+// Telegram landscape is highly volatile (Telegram's 2025 enforcement removes
+// 100k+ channels/day), so most published "leak channel" handles are already
+// dead. Curate this list and add more on the Settings page as the ecosystem
+// shifts — a dead channel is harmless (it is logged and skipped).
+const defaultTelegramChannels = "vxunderground," + // malware & breach/ransomware intel
+	"darkwebinformer_news," + // data-breach / leak / ransomware reporting
+	"nusacloud" // credential-dump / stealer-log channel
+
 // Load reads .env (if present) then the process environment.
 func Load() (*Config, error) {
 	_ = godotenv.Load() // absent .env is fine
@@ -104,7 +117,7 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		WebscraperURLs:   splitList(getenv("WEBSCRAPER_URLS")),
 		SecretScanURLs:   splitList(getenv("SECRETSCAN_URLS")),
 		RSSFeeds:         splitList(str("RSS_FEEDS", defaultRSSFeeds)),
-		TelegramChannels: splitList(getenv("TELEGRAM_CHANNELS")),
+		TelegramChannels: splitList(str("TELEGRAM_CHANNELS", defaultTelegramChannels)),
 
 		TorProxy:    getenv("TOR_PROXY"),
 		OnionURLs:   splitList(getenv("ONION_URLS")),

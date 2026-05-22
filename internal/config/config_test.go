@@ -88,3 +88,31 @@ func TestDefaultRSSFeedsIncludeLeakTrackers(t *testing.T) {
 		t.Errorf("default feeds should include a ransomware leak tracker; got %v", cfg.RSSFeeds)
 	}
 }
+
+func TestDefaultTelegramChannelsMonitored(t *testing.T) {
+	cfg, err := loadFrom(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("loadFrom: %v", err)
+	}
+	if len(cfg.TelegramChannels) < 3 {
+		t.Fatalf("expected curated default Telegram channels, got %d", len(cfg.TelegramChannels))
+	}
+	if !strings.Contains(strings.Join(cfg.TelegramChannels, " "), "vxunderground") {
+		t.Errorf("default Telegram channels should include vxunderground; got %v", cfg.TelegramChannels)
+	}
+}
+
+func TestTelegramChannelsOverridable(t *testing.T) {
+	cfg, err := loadFrom(func(k string) string {
+		if k == "TELEGRAM_CHANNELS" {
+			return "@one, t.me/two"
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatalf("loadFrom: %v", err)
+	}
+	if len(cfg.TelegramChannels) != 2 {
+		t.Fatalf("explicit TELEGRAM_CHANNELS must override the default, got %v", cfg.TelegramChannels)
+	}
+}
