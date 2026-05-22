@@ -1,9 +1,12 @@
+# Build output
 /openticollect
 /server
+
+# Runtime data — the SQLite database and its WAL/SHM sidecars
 /data/
-.env
 *.db
 *.db-shm
 *.db-wal
-.playwright-mcp/
-*.png
+
+# Local secrets — never commit real credentials
+.env

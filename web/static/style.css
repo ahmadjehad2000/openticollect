@@ -27,6 +27,13 @@
   font-weight: 600;
   font-display: swap;
 }
+/* Syne — used only for the wordmark: a distinctive extrabold display face. */
+@font-face {
+  font-family: "Syne";
+  src: url("/static/fonts/syne-800.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
 
 :root {
   --bg: #0e1013;
@@ -49,6 +56,7 @@
   --r: 3px;
   --sans: "Atkinson", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: "Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --display: "Syne", "Atkinson", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -65,7 +73,7 @@ html, body {
 }
 
 /* technical data stays monospace */
-.mono, code, pre.raw-json, .brand, input, select {
+.mono, code, pre.raw-json, input, select {
   font-family: var(--mono);
 }
 
@@ -101,13 +109,18 @@ code { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
   height: 56px;
 }
 .brand {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.015em;
   color: var(--ink);
 }
 .brand:hover { text-decoration: none; }
-.brand-accent { color: inherit; }
+/* The "ti" carries the one spot of accent colour in the wordmark. */
+.brand-accent { color: var(--accent); }
 .navlinks { display: flex; align-items: center; gap: 2px; }
 .navlinks a {
   color: var(--ink-dim);

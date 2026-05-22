@@ -186,9 +186,7 @@ within the existing architecture with no new external dependencies.
 
 ## Implementation status (2026-05-21)
 
-Roadmap items P1.1–P1.3, P2.4–P2.7 and P3.8 are implemented on branch
-`feat/structured-intelligence` — see
-`docs/superpowers/plans/2026-05-21-structured-intelligence-and-leak-detection.md`.
+Roadmap items P1.1–P1.3, P2.4–P2.7 and P3.8 are implemented in the codebase.
 P3.9 is closed as a deliberate no-ML decision (above). The platform now
 extracts structured indicators and leaked credentials from every finding,
 scores each finding deterministically, escalates brand credential leaks,
