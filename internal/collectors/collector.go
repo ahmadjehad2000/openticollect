@@ -70,6 +70,7 @@ func All(cfg *config.Config) []Collector {
 		NewSecretScanner(cfg),
 		NewRSSFeeds(cfg),
 		NewTelegram(cfg),
+		NewX(cfg),
 		NewDarkweb(cfg),
 	}
 }

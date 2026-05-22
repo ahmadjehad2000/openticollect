@@ -41,6 +41,10 @@ type Config struct {
 	RSSFeeds         []string
 	TelegramChannels []string
 
+	// X (Twitter) is read via Nitter, the keyless open-source front-end.
+	XNitterInstances []string // Nitter base URLs, tried in order
+	XAccounts        []string // optional X handles whose timelines are scanned
+
 	TorProxy    string
 	OnionURLs   []string
 	EnableAhmia bool
@@ -118,6 +122,8 @@ func loadFrom(getenv func(string) string) (*Config, error) {
 		SecretScanURLs:   splitList(getenv("SECRETSCAN_URLS")),
 		RSSFeeds:         splitList(str("RSS_FEEDS", defaultRSSFeeds)),
 		TelegramChannels: splitList(str("TELEGRAM_CHANNELS", defaultTelegramChannels)),
+		XNitterInstances: splitList(getenv("X_NITTER_INSTANCES")),
+		XAccounts:        splitList(getenv("X_ACCOUNTS")),
 
 		TorProxy:    getenv("TOR_PROXY"),
 		OnionURLs:   splitList(getenv("ONION_URLS")),
