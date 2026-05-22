@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := loadFrom(func(string) string { return "" })
@@ -69,5 +72,19 @@ func TestMask(t *testing.T) {
 		if got := Mask(c.in); got != c.want {
 			t.Errorf("Mask(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+func TestDefaultRSSFeedsIncludeLeakTrackers(t *testing.T) {
+	cfg, err := loadFrom(func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("loadFrom: %v", err)
+	}
+	if len(cfg.RSSFeeds) < 6 {
+		t.Fatalf("expected curated default feeds, got %d", len(cfg.RSSFeeds))
+	}
+	joined := strings.Join(cfg.RSSFeeds, " ")
+	if !strings.Contains(joined, "ransomware.live") {
+		t.Errorf("default feeds should include a ransomware leak tracker; got %v", cfg.RSSFeeds)
 	}
 }

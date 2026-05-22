@@ -66,3 +66,34 @@ func TestSourceStateToggle(t *testing.T) {
 		t.Fatalf("DisabledSources = %#v", disabled)
 	}
 }
+
+func TestSourceHealth(t *testing.T) {
+	st := newTestStore(t)
+	now := time.Now()
+	for i, ok := range []bool{true, false, true, true} {
+		at := now.Add(time.Duration(i) * time.Minute)
+		if err := st.RecordRun("otx", at, at, ok, 1, 0, ""); err != nil {
+			t.Fatalf("RecordRun: %v", err)
+		}
+	}
+	rate, runs, err := st.SourceHealth("otx", 10)
+	if err != nil {
+		t.Fatalf("SourceHealth: %v", err)
+	}
+	if runs != 4 || rate != 75 {
+		t.Fatalf("SourceHealth = rate %d, runs %d; want 75, 4", rate, runs)
+	}
+}
+
+func TestConsecutiveFailures(t *testing.T) {
+	st := newTestStore(t)
+	now := time.Now()
+	for i, ok := range []bool{true, false, false, false} {
+		at := now.Add(time.Duration(i) * time.Minute)
+		_ = st.RecordRun("nvd", at, at, ok, 0, 0, "boom")
+	}
+	n, err := st.ConsecutiveFailures("nvd")
+	if err != nil || n != 3 {
+		t.Fatalf("ConsecutiveFailures = %d, %v; want 3", n, err)
+	}
+}

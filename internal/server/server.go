@@ -14,6 +14,7 @@ import (
 	"openticollect/internal/collectors"
 	"openticollect/internal/config"
 	"openticollect/internal/logbuf"
+	"openticollect/internal/risk"
 	"openticollect/internal/store"
 	"openticollect/web"
 )
@@ -71,7 +72,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) parseTemplates() error {
 	funcs := s.funcMap()
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings", "logs"} {
+	for _, name := range []string{"dashboard", "findings", "sources", "keywords", "correlation", "settings", "logs", "analytics"} {
 		t, err := template.New("layout.html").Funcs(funcs).ParseFS(web.Templates,
 			"templates/layout.html", "templates/partials/*.html", "templates/"+name+".html")
 		if err != nil {
@@ -98,6 +99,7 @@ func (s *Server) funcMap() template.FuncMap {
 		"fmtTimePtr":    fmtTimePtr,
 		"mask":          config.Mask,
 		"logLevelClass": logLevelClass,
+		"riskBand":      risk.Band,
 	}
 }
 
@@ -155,6 +157,7 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /keywords", s.handleKeywordAdd)
 	mux.HandleFunc("POST /keywords/{id}/toggle", s.handleKeywordToggle)
 	mux.HandleFunc("POST /keywords/{id}/delete", s.handleKeywordDelete)
+	mux.HandleFunc("GET /analytics", s.handleAnalytics)
 	mux.HandleFunc("GET /correlation", s.handleCorrelation)
 	mux.HandleFunc("POST /correlation", s.handleCorrelationRuleAdd)
 	mux.HandleFunc("POST /correlation/{id}/toggle", s.handleCorrelationRuleToggle)
@@ -165,10 +168,20 @@ func (s *Server) routes() {
 	mux.HandleFunc("POST /settings/test-webhook", s.handleTestWebhook)
 	mux.HandleFunc("POST /settings/test-email", s.handleTestEmail)
 
-	// Basic auth (when configured) guards everything except static + health.
+	// JSON read API — bearer-token guarded, bypasses HTML basic-auth.
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("GET /api/findings", s.handleAPIFindings)
+	apiMux.HandleFunc("GET /api/findings/{id}", s.handleAPIFindingDetail)
+	apiMux.HandleFunc("GET /api/indicators", s.handleAPIIndicators)
+	apiMux.HandleFunc("GET /api/stix", s.handleAPISTIX)
+	mux.Handle("/api/", s.apiGuard(apiMux))
+
+	// Basic auth (when configured) guards everything except static, health, and API.
 	authed := basicAuth(s.cfg.BasicAuthUser, s.cfg.BasicAuthPass, mux)
 	guard := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/healthz" {
+		if strings.HasPrefix(r.URL.Path, "/static/") ||
+			strings.HasPrefix(r.URL.Path, "/api/") ||
+			r.URL.Path == "/healthz" {
 			mux.ServeHTTP(w, r)
 			return
 		}

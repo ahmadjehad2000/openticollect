@@ -8,6 +8,7 @@
 <td class="mono">{{.MatchedKeyword}}</td>
 <td>{{truncate .Excerpt 80}}</td>
 <td><span class="badge {{sevClass .Severity}}">{{.Severity}}</span></td>
+<td><span class="risk risk-{{riskBand .RiskScore}}" title="risk score {{.RiskScore}}/100">{{.RiskScore}}</span></td>
 <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
 </tr>
 {{end}}

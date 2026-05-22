@@ -55,9 +55,13 @@ type Runner struct {
 func NewRunner(rules RuleStore) *Runner { return &Runner{rules: rules} }
 
 // Correlate evaluates recent findings (which must already exclude correlation
-// findings) and returns the alerts produced by both engines.
-func (r *Runner) Correlate(recent []models.Finding, now time.Time) ([]Alert, error) {
+// findings) and returns the alerts produced by all engines. iocs maps a
+// finding ID to the indicators extracted from it; pass nil to skip IOC
+// correlation.
+func (r *Runner) Correlate(recent []models.Finding,
+	iocs map[int64][]models.Indicator, now time.Time) ([]Alert, error) {
 	alerts := smartCorrelate(recent, now)
+	alerts = append(alerts, iocCorrelate(recent, iocs, now)...)
 	rules, err := r.rules.EnabledCorrelationRules()
 	if err != nil {
 		return alerts, fmt.Errorf("correlation: load rules: %w", err)

@@ -71,6 +71,63 @@ func (s *Store) SetSourceEnabled(source string, enabled bool) error {
 	return nil
 }
 
+// SourceHealth returns the success rate (0–100, integer percent) and the run
+// count over the most recent lastN runs of a source. A source that never ran
+// reports rate 0, runs 0.
+func (s *Store) SourceHealth(source string, lastN int) (rate, runs int, err error) {
+	if lastN <= 0 {
+		lastN = 20
+	}
+	rows, qerr := s.db.Query(
+		`SELECT ok FROM source_runs WHERE source = ? ORDER BY started_at DESC LIMIT ?`,
+		source, lastN)
+	if qerr != nil {
+		return 0, 0, fmt.Errorf("store: source health: %w", qerr)
+	}
+	defer rows.Close()
+	ok := 0
+	for rows.Next() {
+		var v bool
+		if err := rows.Scan(&v); err != nil {
+			return 0, 0, fmt.Errorf("store: scan health: %w", err)
+		}
+		runs++
+		if v {
+			ok++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, err
+	}
+	if runs == 0 {
+		return 0, 0, nil
+	}
+	return ok * 100 / runs, runs, nil
+}
+
+// ConsecutiveFailures counts how many of the most recent runs failed without
+// an intervening success.
+func (s *Store) ConsecutiveFailures(source string) (int, error) {
+	rows, err := s.db.Query(
+		`SELECT ok FROM source_runs WHERE source = ? ORDER BY started_at DESC LIMIT 50`, source)
+	if err != nil {
+		return 0, fmt.Errorf("store: consecutive failures: %w", err)
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var ok bool
+		if err := rows.Scan(&ok); err != nil {
+			return 0, fmt.Errorf("store: scan failures: %w", err)
+		}
+		if ok {
+			break
+		}
+		n++
+	}
+	return n, rows.Err()
+}
+
 func (s *Store) DisabledSources() ([]string, error) {
 	rows, err := s.db.Query(`SELECT source FROM source_state WHERE enabled = 0`)
 	if err != nil {

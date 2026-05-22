@@ -164,9 +164,15 @@ requires an external AI service unless explicitly noted.
    service — currently out of scope per the project's "no LLM/AI enrichment"
    rule. *Decision needed.*
 
-9. **ML risk classification.** Enterprise platforms use ML to rank credibility.
-   openTIcollect's deterministic score (item 2) covers most of the value without
-   AI; true ML classification is a scope decision against the no-AI rule.
+9. **ML risk classification — DECIDED: not adopted.** Enterprise platforms use
+   ML to rank credibility. openTIcollect instead ships a *deterministic,
+   explainable* 0–100 risk score (`internal/risk`) that weights severity,
+   source trust, recency, extracted-IOC count and leaked-credential count.
+   Every point traces to a concrete signal, so an analyst can audit any score
+   — an advantage over an opaque model. Adding an ML classifier (and the
+   external service or model weights it needs) is **explicitly out of scope**
+   per the project's no-AI/no-LLM rule, reaffirmed by the user on 2026-05-21
+   ("no need for ML or extra AI"). This item is closed, not deferred.
 
 ---
 
@@ -177,6 +183,18 @@ STIX export. Together they move openTIcollect from "flat keyword findings" to
 "structured, scored, integrable intelligence", which is the single biggest
 qualitative gap versus enterprise platforms — and all three are achievable
 within the existing architecture with no new external dependencies.
+
+## Implementation status (2026-05-21)
+
+Roadmap items P1.1–P1.3, P2.4–P2.7 and P3.8 are implemented on branch
+`feat/structured-intelligence` — see
+`docs/superpowers/plans/2026-05-21-structured-intelligence-and-leak-detection.md`.
+P3.9 is closed as a deliberate no-ML decision (above). The platform now
+extracts structured indicators and leaked credentials from every finding,
+scores each finding deterministically, escalates brand credential leaks,
+correlates on shared IOCs, exposes a JSON read API plus STIX 2.1 export, tracks
+per-source health, ships curated leak-tracker feeds, renders a collection
+analytics page, and folds Unicode homoglyphs/full-width forms when matching.
 
 ## Sources
 

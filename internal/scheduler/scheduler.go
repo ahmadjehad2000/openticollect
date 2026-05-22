@@ -29,6 +29,9 @@ const (
 	correlationLookback = 7 * 24 * time.Hour
 	// correlationInterval is how often the periodic correlation pass runs.
 	correlationInterval = 2 * time.Minute
+	// quietAfterFailures auto-disables a source after this many consecutive
+	// failed runs, so a persistently broken source stops consuming a slot.
+	quietAfterFailures = 12
 )
 
 type Scheduler struct {
@@ -177,7 +180,19 @@ func (s *Scheduler) runCollector(ctx context.Context, c collectors.Collector) er
 		s.log.Error("scheduler: record run failed", "collector", c.Name(), "err", recErr)
 	}
 
+	if runErr != nil {
+		if fails, ferr := s.store.ConsecutiveFailures(c.Name()); ferr == nil && fails >= quietAfterFailures {
+			if err := s.store.SetSourceEnabled(c.Name(), false); err == nil {
+				s.log.Warn("scheduler: source auto-quieted after persistent failures",
+					"collector", c.Name(), "consecutive_failures", fails)
+			}
+		}
+	}
+
 	if len(inserted) > 0 {
+		for _, err := range enrichFindings(s.store, inserted) {
+			s.log.Warn("scheduler: enrichment failed", "collector", c.Name(), "err", err)
+		}
 		s.dispatch(ctx, inserted)
 		s.correlate(ctx)
 	}
@@ -207,8 +222,17 @@ func (s *Scheduler) correlate(ctx context.Context) {
 		s.log.Error("scheduler: correlation load failed", "err", err)
 		return
 	}
+	ids := make([]int64, 0, len(recent))
+	for _, f := range recent {
+		ids = append(ids, f.ID)
+	}
+	iocMap, ierr := s.store.IndicatorsByFindings(ids)
+	if ierr != nil {
+		s.log.Warn("scheduler: correlation indicator load failed", "err", ierr)
+		iocMap = nil
+	}
 	now := time.Now()
-	alerts, err := s.correlator.Correlate(recent, now)
+	alerts, err := s.correlator.Correlate(recent, iocMap, now)
 	if err != nil {
 		s.log.Error("scheduler: correlation failed", "err", err)
 		// alerts may still hold the smart-engine output; continue.
@@ -228,6 +252,9 @@ func (s *Scheduler) correlate(ctx context.Context) {
 		return
 	}
 	if len(inserted) > 0 {
+		for _, err := range enrichFindings(s.store, inserted) {
+			s.log.Warn("scheduler: correlation enrichment failed", "err", err)
+		}
 		s.log.Info("scheduler: correlation alerts raised", "count", len(inserted))
 		s.dispatch(ctx, inserted)
 	}

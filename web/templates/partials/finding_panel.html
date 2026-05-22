@@ -22,10 +22,29 @@
 <dt>Detected</dt><dd class="mono">{{fmtTime .CreatedAt}}</dd>
 <dt>Matched keyword</dt><dd class="mono">{{.MatchedKeyword}}</dd>
 <dt>Collector</dt><dd>{{.Source}}</dd>
+<dt>Risk score</dt><dd><span class="risk risk-{{riskBand .RiskScore}}">{{.RiskScore}}</span> / 100</dd>
 </dl>
 
 <h2>Excerpt</h2>
 <div class="excerpt-box">{{.Excerpt}}</div>
+
+{{if .Indicators}}
+<h2>Extracted indicators</h2>
+<div class="ioc-list">
+{{range .Indicators}}<span class="ioc-chip"><span class="ioc-kind">{{.Kind}}</span> <span class="mono">{{.Value}}</span></span>{{end}}
+</div>
+{{end}}
+
+{{if .Credentials}}
+<h2>Leaked credentials <span class="badge badge-critical">{{len .Credentials}}</span></h2>
+<table class="data-table">
+<thead><tr><th>Service</th><th>Username</th><th>Password</th></tr></thead>
+<tbody>
+{{range .Credentials}}<tr><td class="mono">{{if .Service}}{{.Service}}{{else}}—{{end}}</td><td class="mono">{{.Username}}</td><td class="mono muted">{{.Masked}}</td></tr>{{end}}
+</tbody>
+</table>
+<p class="muted">Passwords are never stored — only a redacted length/shape is shown.</p>
+{{end}}
 
 {{if .Raw}}
 <h2>Raw payload</h2>
