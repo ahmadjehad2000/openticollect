@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -34,6 +35,17 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		h.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		// Dynamic responses (pages, HTMX fragments, API JSON) must never be
+		// served from cache. Without this, a browser back/forward navigation
+		// restores a stale snapshot — a finding suppressed moments ago would
+		// reappear in the list. "no-store" also keeps the page out of the
+		// back/forward cache. Static assets stay cacheable but revalidate, so a
+		// rebuilt CSS/JS asset is always picked up.
+		if strings.HasPrefix(r.URL.Path, "/static/") {
+			h.Set("Cache-Control", "no-cache")
+		} else {
+			h.Set("Cache-Control", "no-store")
+		}
 		next.ServeHTTP(w, r)
 	})
 }

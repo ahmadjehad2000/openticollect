@@ -80,6 +80,27 @@ func TestSecurityHeadersSet(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersCacheControl(t *testing.T) {
+	h := securityHeaders(okHandler())
+
+	// Dynamic pages must be no-store so back/forward never restores a stale
+	// snapshot (e.g. a suppressed finding reappearing).
+	for _, path := range []string{"/", "/findings", "/archive", "/api/findings"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("Cache-Control for %q = %q, want %q", path, got, "no-store")
+		}
+	}
+
+	// Static assets stay cacheable (revalidating).
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/style.css", nil))
+	if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
+		t.Errorf("Cache-Control for static asset = %q, want %q", got, "no-cache")
+	}
+}
+
 func TestRecoverPanicReturns500(t *testing.T) {
 	panicky := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		panic("kaboom")
