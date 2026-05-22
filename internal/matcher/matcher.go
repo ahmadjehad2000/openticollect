@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"openticollect/internal/models"
 )
@@ -59,9 +60,12 @@ func New(keywords []models.Keyword) *Matcher {
 	return m
 }
 
-// Match returns every keyword hit in text. Literal keywords are matched after
-// Unicode folding (case + full-width + common homoglyphs); regex keywords are
-// matched against the raw text unchanged.
+// Match returns every keyword hit in text. Literal keywords match whole words
+// only — after Unicode folding (case + full-width + common homoglyphs) — so a
+// keyword never matches as a fragment of a larger word, and one keyword never
+// matches inside another (e.g. "acme" will not hit "acmecorp", and "book" will
+// not hit "facebook"). Regex keywords are matched against the raw text
+// unchanged — a regex keyword owns its own boundary rules.
 func (m *Matcher) Match(text string) []Hit {
 	var hits []Hit
 	folded, offsets := foldIndexed(text)
@@ -69,7 +73,7 @@ func (m *Matcher) Match(text string) []Hit {
 		if lk.folded == "" {
 			continue
 		}
-		if idx := strings.Index(folded, lk.folded); idx >= 0 {
+		if idx := indexWholeWord(folded, lk.folded); idx >= 0 {
 			hits = append(hits, Hit{Keyword: lk.keyword, Index: offsets[idx]})
 		}
 	}
@@ -100,6 +104,58 @@ func Excerpt(text string, at, length int) string {
 		ex = ex[:maxExcerpt]
 	}
 	return ex
+}
+
+// indexWholeWord returns the byte offset of the first whole-word occurrence of
+// sub within s, or -1 when there is none. An occurrence is a whole word when
+// the runes immediately before and after it are not alphanumeric (the start
+// and end of the string also count as boundaries). This keeps a literal
+// keyword from matching as a fragment of a larger word.
+//
+// Non-alphanumeric characters inside sub itself (e.g. the dot in "acme.com")
+// are matched literally — only the two edges of the occurrence are checked.
+func indexWholeWord(s, sub string) int {
+	if sub == "" {
+		return -1
+	}
+	for from := 0; from <= len(s)-len(sub); {
+		i := strings.Index(s[from:], sub)
+		if i < 0 {
+			return -1
+		}
+		at := from + i
+		if !wordRuneBefore(s, at) && !wordRuneAfter(s, at+len(sub)) {
+			return at
+		}
+		from = at + 1
+	}
+	return -1
+}
+
+// wordRuneBefore reports whether the rune ending just before byte offset at is
+// alphanumeric. A string-start (at <= 0) is treated as a boundary (false).
+func wordRuneBefore(s string, at int) bool {
+	if at <= 0 {
+		return false
+	}
+	r, _ := utf8.DecodeLastRuneInString(s[:at])
+	return isWordRune(r)
+}
+
+// wordRuneAfter reports whether the rune starting at byte offset end is
+// alphanumeric. A string-end (end >= len) is treated as a boundary (false).
+func wordRuneAfter(s string, end int) bool {
+	if end >= len(s) {
+		return false
+	}
+	r, _ := utf8.DecodeRuneInString(s[end:])
+	return isWordRune(r)
+}
+
+// isWordRune reports whether r is a letter or digit — the character class that
+// defines a "word" for whole-word matching.
+func isWordRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // confusables maps common Cyrillic/Greek homoglyphs to their Latin look-alike.

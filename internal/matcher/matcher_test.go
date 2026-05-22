@@ -111,3 +111,73 @@ func matcherContains(s, sub string) bool {
 	}
 	return false
 }
+
+func TestLiteralMatchesWholeWordOnly(t *testing.T) {
+	m := New([]models.Keyword{kw(1, "acme", "literal")})
+
+	// "acme" appears as a fragment of a longer word — must NOT match.
+	for _, text := range []string{
+		"acmecorp had a breach",   // trailing letters
+		"the blacme device leaked", // leading letters
+		"acme2 is a different code", // trailing digit
+		"99acme is unrelated",       // leading digit
+	} {
+		if hits := m.Match(text); len(hits) != 0 {
+			t.Errorf("Match(%q) = %d hits, want 0 (keyword is only a word fragment)", text, len(hits))
+		}
+	}
+
+	// "acme" appears as a whole word — must match exactly once.
+	for _, text := range []string{
+		"acme had a breach",
+		"breach reported at acme.",
+		"see (acme) in the dump",
+		"ACME corp leaked data",
+		"record format user:acme:secret",
+		"acme",
+	} {
+		if hits := m.Match(text); len(hits) != 1 {
+			t.Errorf("Match(%q) = %d hits, want 1 (keyword is a whole word)", text, len(hits))
+		}
+	}
+}
+
+func TestKeywordDoesNotConflictWithinAnother(t *testing.T) {
+	// "book" must not fire on text that mentions the unrelated keyword
+	// "facebook" — whole-word matching keeps the two from conflicting.
+	m := New([]models.Keyword{kw(1, "book", "literal"), kw(2, "facebook", "literal")})
+	hits := m.Match("the facebook account credentials were leaked")
+	if len(hits) != 1 || hits[0].Keyword.ID != 2 {
+		t.Fatalf("only the whole keyword 'facebook' should match, got %#v", hits)
+	}
+
+	// When "book" genuinely appears as its own word, it does match.
+	if hits := m.Match("a book of leaked logins"); len(hits) != 1 || hits[0].Keyword.ID != 1 {
+		t.Fatalf("'book' as a whole word should match, got %#v", hits)
+	}
+}
+
+func TestDomainKeywordWholeWord(t *testing.T) {
+	m := New([]models.Keyword{kw(1, "acme.com", "literal")})
+
+	// The watched domain (and its subdomains) — must match.
+	for _, text := range []string{
+		"visit acme.com today",
+		"login.acme.com is unreachable", // subdomain of the watched domain
+		"go to acme.com/leak now",
+	} {
+		if hits := m.Match(text); len(hits) != 1 {
+			t.Errorf("Match(%q) = %d hits, want 1", text, len(hits))
+		}
+	}
+
+	// Different domains that merely share a prefix/suffix — must NOT match.
+	for _, text := range []string{
+		"acme.community has news",  // 'acme.com' followed by a letter
+		"myacme.com is unrelated",  // 'acme.com' preceded by a letter
+	} {
+		if hits := m.Match(text); len(hits) != 0 {
+			t.Errorf("Match(%q) = %d hits, want 0 (different domain)", text, len(hits))
+		}
+	}
+}
